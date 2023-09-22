@@ -60,3 +60,4 @@ __pycache__/
 
 *.o
 *.d
+FreeRTOS/Demo/CORTEX_MPS2_QEMU_IAR_GCC/build/gcc/output/RTOSDemo.map
