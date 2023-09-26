@@ -81,7 +81,16 @@ required UART registers. */
  */
 extern void main_blinky( void );
 extern void main_full( void );
+
+// semaphore program tests
+// set to 0 to use built in semaphore or 1 to use our own
+#define mainUSE_DEFAULT_SEMAPHORE 0
+
+// use default semaphore
 extern void main_sem( void );
+
+// use my semaphore
+extern void main_my_sem( void );
 
 /*
  * Only the comprehensive demo uses application hook (callback) functions.  See
@@ -107,14 +116,13 @@ void main( void )
 
 	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
 	of this file. */
-	#if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
+	#if ( mainUSE_DEFAULT_SEMAPHORE == 1 )
 	{
-//		main_blinky();
-                main_sem();
+            main_sem();
 	}
 	#else
 	{
-		main_full();
+            main_my_sem();
 	}
 	#endif
 }

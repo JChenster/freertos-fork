@@ -58,6 +58,15 @@ __pycache__/
 # Renesas IDE temporary files
 *.nav
 
+# Object files
 *.o
 *.d
+
+# Specific files
 FreeRTOS/Demo/CORTEX_MPS2_QEMU_IAR_GCC/build/gcc/output/RTOSDemo.map
+
+# ctags
+tags
+
+# vim swp files
+*.swp
