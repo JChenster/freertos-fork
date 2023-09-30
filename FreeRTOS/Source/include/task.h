@@ -78,6 +78,10 @@
  * array. */
 #define tskDEFAULT_INDEX_TO_NOTIFY     ( 0 )
 
+// Identify internal list items
+#define tskEVENT_LIST_ITEM             ( 0 )
+#define tskTAKE_LIST_ITEM              ( 1 )
+
 /**
  * task. h
  *
@@ -3259,7 +3263,8 @@ void vTaskPlaceOnEventList( List_t * const pxEventList,
 void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
                                      const TickType_t xItemValue,
                                      const TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
-
+void vTaskPlaceOnSemList ( List_t * const pxSemList,
+                           const BaseType_t xIsTakeList ) PRIVILEGED_FUNCTION;
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
  * INTERFACE WHICH IS FOR THE EXCLUSIVE USE OF THE SCHEDULER.
@@ -3302,6 +3307,8 @@ void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
 BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) PRIVILEGED_FUNCTION;
 void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
                                         const TickType_t xItemValue ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskRemoveFromSemList( const List_t * const pxSemList,
+                                   const BaseType_t xIsTakeList ) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS ONLY

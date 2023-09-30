@@ -1419,7 +1419,7 @@ typedef struct xSTATIC_TCB
     #if ( configUSE_CORE_AFFINITY == 1 ) && ( configNUMBER_OF_CORES > 1 )
         UBaseType_t uxDummy26;
     #endif
-    StaticListItem_t xDummy3[ 2 ];
+    StaticListItem_t xDummy3[ 3 ];
     UBaseType_t uxDummy5;
     void * pxDummy6;
     #if ( configNUMBER_OF_CORES > 1 )

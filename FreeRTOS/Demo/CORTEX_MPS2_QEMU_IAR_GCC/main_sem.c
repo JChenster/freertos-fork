@@ -35,7 +35,7 @@ void main_sem ( void )
                     "proc2",
                     configMINIMAL_STACK_SIZE,
                     NULL,
-                    tskIDLE_PRIORITY + 2,
+                    tskIDLE_PRIORITY + 1,
                     NULL);
     }
 
@@ -49,7 +49,7 @@ static void proc1(void* pvParamaters) {
 
     for (;;) {
         xSemaphoreTake(xSemaphore, SEM_WAIT_MS);
-        printf("Process 1 just took semaphore. Sleeping now...\n");
+        printf("Process 1 just took semaphore\n");
 
         vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
 
@@ -68,7 +68,7 @@ static void proc2(void* pvParamaters) {
 
     for (;;) {
         xSemaphoreTake(xSemaphore, SEM_WAIT_MS);
-        printf("Process 2 just took semaphore. Sleeping now...\n");
+        printf("Process 2 just took semaphore\n");
 
         vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
 

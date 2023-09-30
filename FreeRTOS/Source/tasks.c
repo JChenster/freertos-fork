@@ -310,6 +310,7 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
 
     ListItem_t xStateListItem;                  /**< The list that the state list item of a task is reference from denotes the state of that task (Ready, Blocked, Suspended ). */
     ListItem_t xEventListItem;                  /**< Used to reference a task from an event list. */
+    ListItem_t xTakeListItem;
     UBaseType_t uxPriority;                     /**< The priority of the task.  0 is the lowest priority. */
     StackType_t * pxStack;                      /**< Points to the start of the stack. */
     #if ( configNUMBER_OF_CORES > 1 )
@@ -1593,6 +1594,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
 
     vListInitialiseItem( &( pxNewTCB->xStateListItem ) );
     vListInitialiseItem( &( pxNewTCB->xEventListItem ) );
+    vListInitialiseItem( &( pxNewTCB->xTakeListItem ) );
 
     /* Set the pxNewTCB as a link back from the ListItem_t.  This is so we can get
      * back to  the containing TCB from a generic item in a list. */
@@ -1601,6 +1603,9 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     /* Event lists are always in priority order. */
     listSET_LIST_ITEM_VALUE( &( pxNewTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
+
+    listSET_LIST_ITEM_VALUE( &( pxNewTCB->xTakeListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
+    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
     {
@@ -4777,6 +4782,19 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
 }
 /*-----------------------------------------------------------*/
 
+void vTaskPlaceOnSemList ( List_t * const pxSemList,
+                           const BaseType_t xIsTakeList )
+{
+    configASSERT( pxSemList );
+    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+
+    if( xIsTakeList == pdTRUE )
+    {
+        vListInsert( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
+    }
+}
+/*-----------------------------------------------------------*/
+
 #if ( configUSE_TIMERS == 1 )
 
     void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
@@ -4812,7 +4830,8 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
 #endif /* configUSE_TIMERS */
 /*-----------------------------------------------------------*/
 
-BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList )
+BaseType_t xTaskRemoveFromList( const List_t * const pxEventList,
+                                const BaseType_t xItemToRemove )
 {
     TCB_t * pxUnblockedTCB;
     BaseType_t xReturn;
@@ -4832,7 +4851,17 @@ BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList )
      * pxEventList is not empty. */
     pxUnblockedTCB = listGET_OWNER_OF_HEAD_ENTRY( pxEventList ); /*lint !e9079 void * is used as this macro is used with timers and co-routines too.  Alignment is known to be fine as the type of the pointer stored and retrieved is the same. */
     configASSERT( pxUnblockedTCB );
-    listREMOVE_ITEM( &( pxUnblockedTCB->xEventListItem ) );
+    configASSERT( xItemToRemove == tskEVENT_LIST_ITEM ||
+                  xItemToRemove == tskTAKE_LIST_ITEM );
+
+    if( xItemToRemove == tskEVENT_LIST_ITEM )
+    {
+        listREMOVE_ITEM( &( pxUnblockedTCB->xEventListItem ) );
+    }
+    else if( xItemToRemove == tskTAKE_LIST_ITEM )
+    {
+        listREMOVE_ITEM( &( pxUnblockedTCB->xTakeListItem ) );
+    }
 
     if( uxSchedulerSuspended == ( UBaseType_t ) 0U )
     {
@@ -4896,6 +4925,22 @@ BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList )
     #endif /* #if ( configNUMBER_OF_CORES == 1 ) */
 
     return xReturn;
+}
+/*-----------------------------------------------------------*/
+
+BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) {
+    return xTaskRemoveFromList( pxEventList, tskEVENT_LIST_ITEM );
+}
+/*-----------------------------------------------------------*/
+
+BaseType_t xTaskRemoveFromSemList( const List_t * const pxSemList,
+                                   const BaseType_t xIsTakeList )
+{
+    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+    if( xIsTakeList == pdTRUE )
+    {
+        return xTaskRemoveFromList( pxSemList, tskEVENT_LIST_ITEM );
+    }
 }
 /*-----------------------------------------------------------*/
 

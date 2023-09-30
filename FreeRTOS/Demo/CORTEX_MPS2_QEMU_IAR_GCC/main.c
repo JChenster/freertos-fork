@@ -83,7 +83,7 @@ extern void main_blinky( void );
 extern void main_full( void );
 
 // semaphore program tests
-// set to 0 to use built in semaphore or 1 to use our own
+// set to 1 to use built in semaphore or 0 to use our own
 #define mainUSE_DEFAULT_SEMAPHORE 0
 
 // use default semaphore
