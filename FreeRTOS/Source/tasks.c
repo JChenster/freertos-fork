@@ -1604,8 +1604,9 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     listSET_LIST_ITEM_VALUE( &( pxNewTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
 
-    listSET_LIST_ITEM_VALUE( &( pxNewTCB->xTakeListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
-    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem), pxNewTCB );
+    // Initialize take list item
+    // value does not matter
+    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem ), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
     {
@@ -4790,7 +4791,7 @@ void vTaskPlaceOnSemList ( List_t * const pxSemList,
 
     if( xIsTakeList == pdTRUE )
     {
-        vListInsert( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
+        listINSERT_END( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
     }
 }
 /*-----------------------------------------------------------*/
@@ -4933,14 +4934,24 @@ BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) {
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t xTaskRemoveFromSemList( const List_t * const pxSemList,
+void vTaskRemoveFromSemList( const List_t * const pxSemList,
                                    const BaseType_t xIsTakeList )
 {
+    configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+
+    // get task whose item we should remove from list and notify
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
+    configASSERT( pxHeadOwner );
+
+    // remove task take (give) item
     if( xIsTakeList == pdTRUE )
     {
-        return xTaskRemoveFromList( pxSemList, tskEVENT_LIST_ITEM );
+        listREMOVE_ITEM( &(pxHeadOwner->xTakeListItem) );
     }
+
+    // notify task
+    xTaskNotifyGive( pxHeadOwner );
 }
 /*-----------------------------------------------------------*/
 

@@ -14,6 +14,7 @@ struct MySemaphoreDefinition {
     UBaseType_t Count;
     UBaseType_t MaxCount;
 
+    // list of givers (takers) ordered by when task calls give (take)
     List_t WaitingGivers;
     List_t WaitingTakers;
 };
@@ -54,13 +55,31 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore) {
         if (listLIST_IS_EMPTY(&(MySemaphore->WaitingGivers)) == pdFALSE) {
             // TODO
         }
-    } else {
-        // Semaphore resource is not available so add to list of waiting takers
-        // but only if this task is not already waiting
-        vTaskPlaceOnSemList(&(MySemaphore->WaitingTakers), pdTRUE);
+
+        taskEXIT_CRITICAL();
+        return pdTRUE;
+    }
+
+    // Semaphore resource is not available so add to list of waiting takers
+    vTaskPlaceOnSemList(&(MySemaphore->WaitingTakers), pdTRUE);
+
+    // exit critical section to allow task to be notified
+    taskEXIT_CRITICAL();
+
+    // wait to be notified that semaphore is available
+    const TickType_t xBlockTime = pdMS_TO_TICKS(10000);
+    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, xBlockTime);
+
+    // enter critical section in order to take semaphore if notify is sucessful
+    taskENTER_CRITICAL();
+
+    if (ulNotifiedValue > 0) {
+        taken = pdTRUE;
+        --(MySemaphore->Count);
     }
 
     taskEXIT_CRITICAL();
+
     return taken;
 }
 
@@ -79,11 +98,12 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
         // Since resource can no longer be empty, if there are any waiting
         // takers, they are now able to take the resource
         if (listLIST_IS_EMPTY(&(MySemaphore->WaitingTakers)) == pdFALSE) {
-            // Move the highest priority taker into ready state
-            xTaskRemoveFromSemList(&(MySemaphore->WaitingTakers), pdTRUE);
-            // If highest priority taker has equal priority, yield
-            // If highest priority taker is higher priority, scheduler will
-            // schedule it first anyways
+            // Notify the next taker that semaphore is ready
+            vTaskRemoveFromSemList(&(MySemaphore->WaitingTakers), pdTRUE);
+
+            // If next taker has equal priority, yield
+            // If next taker is higher priority, scheduler will schedule it
+            // first anyways
             taskYIELD();
         }
     } else {

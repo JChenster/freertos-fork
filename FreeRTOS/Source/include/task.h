@@ -3307,8 +3307,8 @@ void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
 BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) PRIVILEGED_FUNCTION;
 void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
                                         const TickType_t xItemValue ) PRIVILEGED_FUNCTION;
-BaseType_t xTaskRemoveFromSemList( const List_t * const pxSemList,
-                                   const BaseType_t xIsTakeList ) PRIVILEGED_FUNCTION;
+void vTaskRemoveFromSemList( const List_t * const pxSemList,
+                             const BaseType_t xIsTakeList ) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS ONLY

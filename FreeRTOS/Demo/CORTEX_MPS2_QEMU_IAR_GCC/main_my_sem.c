@@ -46,8 +46,10 @@ static void proc1(void* pvParamaters) {
     for (;;) {
         BaseType_t taken = MySemaphoreTake(MySemaphore);
 
-        if (taken == pdTRUE) {
+        if (taken) {
             printf("Process 1 just took semaphore\n");
+        } else {
+            printf("Process 1 timed out waiting for take\n");
         }
 
         vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
@@ -70,8 +72,10 @@ static void proc2(void* pvParamaters) {
     for (;;) {
         BaseType_t taken = MySemaphoreTake(MySemaphore);
 
-        if (taken == pdTRUE) {
+        if (taken) {
             printf("Process 2 just took semaphore\n");
+        } else {
+            printf("Process 2 timed out waiting for take\n");
         }
 
         vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
