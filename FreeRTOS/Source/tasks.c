@@ -4831,8 +4831,7 @@ void vTaskPlaceOnSemList ( List_t * const pxSemList,
 #endif /* configUSE_TIMERS */
 /*-----------------------------------------------------------*/
 
-BaseType_t xTaskRemoveFromList( const List_t * const pxEventList,
-                                const BaseType_t xItemToRemove )
+BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 {
     TCB_t * pxUnblockedTCB;
     BaseType_t xReturn;
@@ -4852,17 +4851,7 @@ BaseType_t xTaskRemoveFromList( const List_t * const pxEventList,
      * pxEventList is not empty. */
     pxUnblockedTCB = listGET_OWNER_OF_HEAD_ENTRY( pxEventList ); /*lint !e9079 void * is used as this macro is used with timers and co-routines too.  Alignment is known to be fine as the type of the pointer stored and retrieved is the same. */
     configASSERT( pxUnblockedTCB );
-    configASSERT( xItemToRemove == tskEVENT_LIST_ITEM ||
-                  xItemToRemove == tskTAKE_LIST_ITEM );
-
-    if( xItemToRemove == tskEVENT_LIST_ITEM )
-    {
-        listREMOVE_ITEM( &( pxUnblockedTCB->xEventListItem ) );
-    }
-    else if( xItemToRemove == tskTAKE_LIST_ITEM )
-    {
-        listREMOVE_ITEM( &( pxUnblockedTCB->xTakeListItem ) );
-    }
+    listREMOVE_ITEM( &( pxUnblockedTCB->xEventListItem ) );
 
     if( uxSchedulerSuspended == ( UBaseType_t ) 0U )
     {
@@ -4926,11 +4915,6 @@ BaseType_t xTaskRemoveFromList( const List_t * const pxEventList,
     #endif /* #if ( configNUMBER_OF_CORES == 1 ) */
 
     return xReturn;
-}
-/*-----------------------------------------------------------*/
-
-BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) {
-    return xTaskRemoveFromList( pxEventList, tskEVENT_LIST_ITEM );
 }
 /*-----------------------------------------------------------*/
 
