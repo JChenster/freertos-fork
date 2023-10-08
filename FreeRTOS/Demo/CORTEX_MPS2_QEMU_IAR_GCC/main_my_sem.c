@@ -1,92 +1,95 @@
-/* Standard includes. */
-#include <assert.h>
-#include <stdio.h>
-
 /* Kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "my_semaphore.h"
 
-#define BLOCK_MS pdMS_TO_TICKS(1000UL)
+/* Standard includes. */
+#include <stdio.h>
 
-static void proc1(void* pvParamaters);
-static void proc2(void* pvParamaters);
+#define BLOCK_MS pdMS_TO_TICKS(1000UL)
+#define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+
+// Identifiers for test
+#define BINARY_SAME_PRIORITY (0)
+#define BINARY_DIFF_PRIORITY (1)
+
+// Set this to what test you want to run
+#define RUNNING_TEST (BINARY_SAME_PRIORITY)
 
 MySemaphoreHandle_t MySemaphore;
+int Priorities[5];
+
+// Test function declarations
+void TestBinarySamePriority();
+void TestBinaryDiffPriority();
 
 void main_my_sem(void) {
-    MySemaphore = MySemaphoreCreate(2, 1);
+    #if RUNNING_TEST == BINARY_SAME_PRIORITY
+        printf("Running binary semaphore test with same priority tasks\n");
+        TestBinarySamePriority();
+    #elif RUNNING_TEST == BINARY_DIFF_PRIORITY
+        printf("Running binary semaphore test with different priority tasks\n");
+        TestBinaryDiffPriority();
+    #else
+        printf("Invalid RUNNING_TEST\n");
+    #endif
+}
 
-    if (MySemaphore) {
-        printf("MySemaphore successfully set up\n");
+static void BinaryTaskFunc(void* pvParamaters) {
+    int task_num = (int) pvParamaters;
 
-        xTaskCreate(proc1,
-                    "proc1",
-                    configMINIMAL_STACK_SIZE * 2,
+    TickType_t xNextWakeTime = xTaskGetTickCount();
+
+    // sleep for a little so that smaller number tasks go first
+    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(100UL * task_num));
+
+    for (;;) {
+        // take semaphore
+        configASSERT(MySemaphoreTake(MySemaphore) == pdTRUE);
+        printf("Task %d TAKE SUCCESS\n", task_num);
+
+        // sleep and hold the semaphore
+        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
+
+        // give the semaphore
+        printf("Task %d GIVE\n", task_num);
+        configASSERT(MySemaphoreGive(MySemaphore) == pdTRUE);
+
+        // sleep before trying to take again
+        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
+    }
+}
+
+// helper function for testing binary semaphore
+void TestBinary(int num_tasks) {
+    // create binary semaphore
+    UBaseType_t max_count = 1;
+    UBaseType_t initial_count = 1;
+    MySemaphore = MySemaphoreCreate(max_count, initial_count);
+    configASSERT(MySemaphore);
+
+    for (int i = 0; i < num_tasks; ++i) {
+        xTaskCreate(BinaryTaskFunc,
                     NULL,
-                    tskIDLE_PRIORITY + 1,
-                    NULL);
-
-        xTaskCreate(proc2,
-                    "proc2",
-                    configMINIMAL_STACK_SIZE * 2,
-                    NULL,
-                    tskIDLE_PRIORITY + 1,
+                    STACK_SIZE,
+                    (void*) i + 1,
+                    Priorities[i], // assume that Priorities is configured
                     NULL);
     }
 
     vTaskStartScheduler();
 }
 
-static void proc1(void* pvParamaters) {
-    (void) pvParamaters;
+void TestBinarySamePriority() {
+    Priorities[0] = tskIDLE_PRIORITY + 1;
+    Priorities[1] = tskIDLE_PRIORITY + 1;
 
-    TickType_t xNextWakeTime = xTaskGetTickCount();
-
-    for (;;) {
-        BaseType_t taken = MySemaphoreTake(MySemaphore);
-
-        if (taken) {
-            printf("Process 1 just took semaphore\n");
-        } else {
-            printf("Process 1 timed out waiting for take\n");
-        }
-
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
-
-        if (taken == pdTRUE) {
-            printf("Process 1 gonna give it up now\n");
-            assert(MySemaphoreGive(MySemaphore) == pdTRUE);
-        }
-
-        // wait before trying to take again
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
-    }
+    TestBinary(2);
 }
 
-static void proc2(void* pvParamaters) {
-    (void) pvParamaters;
+void TestBinaryDiffPriority() {
+    Priorities[0] = tskIDLE_PRIORITY + 1;
+    Priorities[1] = tskIDLE_PRIORITY + 2;
 
-    TickType_t xNextWakeTime = xTaskGetTickCount();
-
-    for (;;) {
-        BaseType_t taken = MySemaphoreTake(MySemaphore);
-
-        if (taken) {
-            printf("Process 2 just took semaphore\n");
-        } else {
-            printf("Process 2 timed out waiting for take\n");
-        }
-
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
-
-        if (taken == pdTRUE) {
-            printf("Process 2 gonna give it up now\n");
-            assert(MySemaphoreGive(MySemaphore) == pdTRUE);
-        }
-
-        // wait before trying to take again
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
-    }
+    TestBinary(2);
 }
-
