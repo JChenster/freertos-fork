@@ -82,14 +82,7 @@ required UART registers. */
 extern void main_blinky( void );
 extern void main_full( void );
 
-// semaphore program tests
-// set to 1 to use built in semaphore or 0 to use our own
-#define mainUSE_DEFAULT_SEMAPHORE 0
-
-// use default semaphore
-extern void main_sem( void );
-
-// use my semaphore
+// semaphore test program
 extern void main_my_sem( void );
 
 /*
@@ -114,17 +107,7 @@ void main( void )
 	/* Hardware initialisation.  printf() output uses the UART for IO. */
 	prvUARTInit();
 
-	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-	of this file. */
-	#if ( mainUSE_DEFAULT_SEMAPHORE == 1 )
-	{
-            main_sem();
-	}
-	#else
-	{
-            main_my_sem();
-	}
-	#endif
+        main_my_sem();
 }
 /*-----------------------------------------------------------*/
 

@@ -34,7 +34,7 @@ SOURCE_FILES += $(KERNEL_DIR)/portable/GCC/ARM_CM3/port.c
 SOURCE_FILES += $(KERNEL_DIR)/my_semaphore.c
 
 #
-# Common demo files for the "full" build, as opposed to the "blinky" build - 
+# Common demo files for the "full" build, as opposed to the "blinky" build -
 # these files are build by all the FreeRTOS kernel demos.
 #
 DEMO_ROOT = $(FREERTOS_ROOT)/Demo
@@ -81,7 +81,6 @@ SOURCE_FILES += (DEMO_PROJECT)/main_blinky.c
 SOURCE_FILES += (DEMO_PROJECT)/main_full.c
 
 # add my semaphore programs
-SOURCE_FILES += (DEMO_PROJECT)/main_sem.c
 SOURCE_FILES += (DEMO_PROJECT)/main_my_sem.c
 
 SOURCE_FILES += ./startup_gcc.c
@@ -112,7 +111,7 @@ $(OUTPUT_DIR)/$(IMAGE): ./mps2_m3.ld $(OBJS_OUTPUT) Makefile
 	$(LD) $(OBJS_OUTPUT) $(CFLAGS) -Xlinker --gc-sections -Xlinker -T ./mps2_m3.ld \
 		-Xlinker -Map=$(OUTPUT_DIR)/RTOSDemo.map -specs=nano.specs \
 		-specs=nosys.specs -specs=rdimon.specs -o $(OUTPUT_DIR)/$(IMAGE)
-	$(SIZE) $(OUTPUT_DIR)/$(IMAGE)		
+	$(SIZE) $(OUTPUT_DIR)/$(IMAGE)
 
 $(DEP_OUTPUT):
 include $(wildcard $(DEP_OUTPUT))

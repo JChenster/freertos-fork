@@ -1,6 +1,9 @@
 /* Kernel includes. */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "timers.h"
+#include "queue.h"
+#include "semphr.h"
 #include "my_semaphore.h"
 
 /* Standard includes. */
@@ -8,22 +11,40 @@
 
 #define BLOCK_MS pdMS_TO_TICKS(1000UL)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
+#define SEM_WAIT_MS pdMS_TO_TICKS(3000UL)
+
+// Set this to 1 to use MySemaphore, else use defualt
+# define USE_MY_SEM (1)
+// Set this to what test you want to run
+#define RUNNING_TEST (BINARY_DIFF_PRIORITY)
+
+MySemaphoreHandle_t MySemaphore;
+SemaphoreHandle_t xSemaphore = NULL;
+
+int Priorities[5];
+
+// Macros to take and give semaphore
+#if (USE_MY_SEM == 1)
+    #define SEM_NAME "My Semaphore"
+    #define SEM_TAKE() MySemaphoreTake(MySemaphore)
+    #define SEM_GIVE() MySemaphoreGive(MySemaphore)
+#else
+    #define SEM_NAME "Default Semaphore"
+    #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_MS)
+    #define SEM_GIVE() xSemaphoreGive(xSemaphore)
+#endif
 
 // Identifiers for test
 #define BINARY_SAME_PRIORITY (0)
 #define BINARY_DIFF_PRIORITY (1)
-
-// Set this to what test you want to run
-#define RUNNING_TEST (BINARY_SAME_PRIORITY)
-
-MySemaphoreHandle_t MySemaphore;
-int Priorities[5];
 
 // Test function declarations
 void TestBinarySamePriority();
 void TestBinaryDiffPriority();
 
 void main_my_sem(void) {
+    printf("Using %s\n", SEM_NAME);
+
     #if RUNNING_TEST == BINARY_SAME_PRIORITY
         printf("Running binary semaphore test with same priority tasks\n");
         TestBinarySamePriority();
@@ -45,7 +66,8 @@ static void BinaryTaskFunc(void* pvParamaters) {
 
     for (;;) {
         // take semaphore
-        configASSERT(MySemaphoreTake(MySemaphore) == pdTRUE);
+        BaseType_t taken = SEM_TAKE();
+        configASSERT(taken == pdTRUE);
         printf("Task %d TAKE SUCCESS\n", task_num);
 
         // sleep and hold the semaphore
@@ -53,7 +75,8 @@ static void BinaryTaskFunc(void* pvParamaters) {
 
         // give the semaphore
         printf("Task %d GIVE\n", task_num);
-        configASSERT(MySemaphoreGive(MySemaphore) == pdTRUE);
+        BaseType_t given = SEM_GIVE();
+        configASSERT(given == pdTRUE);
 
         // sleep before trying to take again
         vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
@@ -63,10 +86,13 @@ static void BinaryTaskFunc(void* pvParamaters) {
 // helper function for testing binary semaphore
 void TestBinary(int num_tasks) {
     // create binary semaphore
-    UBaseType_t max_count = 1;
-    UBaseType_t initial_count = 1;
-    MySemaphore = MySemaphoreCreate(max_count, initial_count);
-    configASSERT(MySemaphore);
+    #if (USE_MY_SEM == 1)
+        MySemaphore = MySemaphoreCreate(1, 1);
+        configASSERT(MySemaphore);
+    #else
+        vSemaphoreCreateBinary(xSemaphore);
+        configASSERT(xSemaphore);
+    #endif
 
     for (int i = 0; i < num_tasks; ++i) {
         xTaskCreate(BinaryTaskFunc,
