@@ -9,14 +9,26 @@
 /* Standard includes. */
 #include <stdio.h>
 
-#define BLOCK_MS pdMS_TO_TICKS(1000UL)
+#define BLOCK_MS pdMS_TO_TICKS(2000UL)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
 #define SEM_WAIT_MS pdMS_TO_TICKS(3000UL)
+
+// Identifiers for test
+#define BINARY_SAME_PRIORITY (0)
+#define BINARY_DIFF_PRIORITY (1)
+#define COUNTING_SAME_PRIORITY (2)
+#define COUNTING_DIFF_PRIORITY (3)
+
+// Test function declarations
+void TestBinarySamePriority();
+void TestBinaryDiffPriority();
+void TestCountingSamePriority();
+void TestCountingDiffPriority();
 
 // Set this to 1 to use MySemaphore, else use defualt
 # define USE_MY_SEM (1)
 // Set this to what test you want to run
-#define RUNNING_TEST (BINARY_DIFF_PRIORITY)
+#define RUNNING_TEST (BINARY_SAME_PRIORITY)
 
 MySemaphoreHandle_t MySemaphore;
 SemaphoreHandle_t xSemaphore = NULL;
@@ -34,14 +46,6 @@ int Priorities[5];
     #define SEM_GIVE() xSemaphoreGive(xSemaphore)
 #endif
 
-// Identifiers for test
-#define BINARY_SAME_PRIORITY (0)
-#define BINARY_DIFF_PRIORITY (1)
-
-// Test function declarations
-void TestBinarySamePriority();
-void TestBinaryDiffPriority();
-
 void main_my_sem(void) {
     printf("Using %s\n", SEM_NAME);
 
@@ -51,12 +55,18 @@ void main_my_sem(void) {
     #elif RUNNING_TEST == BINARY_DIFF_PRIORITY
         printf("Running binary semaphore test with different priority tasks\n");
         TestBinaryDiffPriority();
+    #elif RUNNING_TEST == COUNTING_SAME_PRIORITY
+        printf("Running counting semaphore test with same priority tasks\n");
+        TestCountingSamePriority();
+    #elif RUNNING_TEST == COUNTING_DIFF_PRIORITY
+        printf("Running counting semaphore test with different priority tasks\n");
+        TestCountingDiffPriority();
     #else
         printf("Invalid RUNNING_TEST\n");
     #endif
 }
 
-static void BinaryTaskFunc(void* pvParamaters) {
+static void SemTaskFunc(void* pvParamaters) {
     int task_num = (int) pvParamaters;
 
     TickType_t xNextWakeTime = xTaskGetTickCount();
@@ -95,10 +105,10 @@ void TestBinary(int num_tasks) {
     #endif
 
     for (int i = 0; i < num_tasks; ++i) {
-        xTaskCreate(BinaryTaskFunc,
+        xTaskCreate(SemTaskFunc,
                     NULL,
                     STACK_SIZE,
-                    (void*) i + 1,
+                    (void*) (i + 1),
                     Priorities[i], // assume that Priorities is configured
                     NULL);
     }
@@ -107,15 +117,60 @@ void TestBinary(int num_tasks) {
 }
 
 void TestBinarySamePriority() {
-    Priorities[0] = tskIDLE_PRIORITY + 1;
-    Priorities[1] = tskIDLE_PRIORITY + 1;
+    for (int i = 0; i < 3; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1;
+    }
 
-    TestBinary(2);
+    TestBinary(3);
 }
 
 void TestBinaryDiffPriority() {
-    Priorities[0] = tskIDLE_PRIORITY + 1;
-    Priorities[1] = tskIDLE_PRIORITY + 2;
+    for (int i = 0; i < 3; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1 + i;
+    }
 
-    TestBinary(2);
+    TestBinary(3);
+}
+
+void TestCounting(int num_tasks) {
+    UBaseType_t max_count = 2;
+    UBaseType_t init_count = 2;
+
+    // create countingsemaphore
+    #if (USE_MY_SEM == 1)
+        MySemaphore = MySemaphoreCreate(max_count, init_count);
+        configASSERT(MySemaphore);
+    #else
+        xSemaphore = xSemaphoreCreateCounting(max_count, init_count);
+        configASSERT(xSemaphore);
+    #endif
+
+    for (int i = 0; i < num_tasks; ++i) {
+        xTaskCreate(SemTaskFunc,
+                    NULL,
+                    STACK_SIZE,
+                    (void*) (i + 1),
+                    Priorities[i], // assume that Priorities is configured
+                    NULL);
+    }
+
+    vTaskStartScheduler();
+}
+
+void TestCountingSamePriority() {
+    for (int i = 0; i < 3; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1;
+    }
+
+    TestCounting(3);
+}
+
+void TestCountingDiffPriority() {
+    // priorities should not matter since tasks sleep for varying amounts and
+    // the order they take semaphore is based on that
+    Priorities[0] = tskIDLE_PRIORITY + 1;
+    Priorities[1] = tskIDLE_PRIORITY + 3;
+    Priorities[2] = tskIDLE_PRIORITY + 2;
+
+    TestCounting(3);
 }
