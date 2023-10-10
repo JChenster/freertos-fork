@@ -1605,7 +1605,10 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
 
     // Initialize take list item
-    // value does not matter
+    // Order take list from highest to lowest priority
+    listSET_LIST_ITEM_VALUE(
+        &( pxNewTCB->xTakeListItem ),
+        ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem ), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
@@ -4791,7 +4794,7 @@ void vTaskPlaceOnSemList ( List_t * const pxSemList,
 
     if( xIsTakeList == pdTRUE )
     {
-        listINSERT_END( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
+        vListInsert( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
     }
 }
 /*-----------------------------------------------------------*/

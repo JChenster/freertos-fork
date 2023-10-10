@@ -9,9 +9,12 @@
 /* Standard includes. */
 #include <stdio.h>
 
-#define BLOCK_MS pdMS_TO_TICKS(2000UL)
+#define BLOCK_MS pdMS_TO_TICKS(1000UL)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define SEM_WAIT_MS pdMS_TO_TICKS(3000UL)
+#define SEM_WAIT_MS pdMS_TO_TICKS(3500UL)
+
+#define NOT_REQUIRED (0)
+#define REQUIRED (1)
 
 // Identifiers for test
 #define BINARY_SAME_PRIORITY (0)
@@ -28,12 +31,20 @@ void TestCountingDiffPriority();
 // Set this to 1 to use MySemaphore, else use defualt
 # define USE_MY_SEM (1)
 // Set this to what test you want to run
-#define RUNNING_TEST (BINARY_SAME_PRIORITY)
+#define RUNNING_TEST (COUNTING_DIFF_PRIORITY)
 
 MySemaphoreHandle_t MySemaphore;
 SemaphoreHandle_t xSemaphore = NULL;
 
-int Priorities[5];
+// Task level attributes
+typedef struct _task_info_t {
+    char require_take;
+    char require_give;
+} task_info_t;
+
+#define MAX_TASKS (5)
+int Priorities[MAX_TASKS];
+task_info_t TaskInfos[MAX_TASKS];
 
 // Macros to take and give semaphore
 #if (USE_MY_SEM == 1)
@@ -68,28 +79,37 @@ void main_my_sem(void) {
 
 static void SemTaskFunc(void* pvParamaters) {
     int task_num = (int) pvParamaters;
-
     TickType_t xNextWakeTime = xTaskGetTickCount();
 
     // sleep for a little so that smaller number tasks go first
-    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(100UL * task_num));
+    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(100UL * (task_num + 1)));
 
     for (;;) {
         // take semaphore
         BaseType_t taken = SEM_TAKE();
-        configASSERT(taken == pdTRUE);
-        printf("Task %d TAKE SUCCESS\n", task_num);
-
-        // sleep and hold the semaphore
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
+        if (TaskInfos[task_num].require_take == REQUIRED) {
+            configASSERT(taken == pdTRUE);
+        }
+        if (taken) {
+            printf("Task %d TAKE SUCCESS\n", task_num);
+        }
 
         // give the semaphore
-        printf("Task %d GIVE\n", task_num);
-        BaseType_t given = SEM_GIVE();
-        configASSERT(given == pdTRUE);
+        if (taken) {
+            // sleep and hold the semaphore
+            vTaskDelay(BLOCK_MS);
 
-        // sleep before trying to take again
-        vTaskDelayUntil(&xNextWakeTime, BLOCK_MS);
+            printf("Task %d GIVE\n", task_num);
+            BaseType_t given = SEM_GIVE();
+            if (TaskInfos[task_num].require_give == REQUIRED) {
+                configASSERT(given == pdTRUE);
+            }
+        }
+
+        // sleep before trying to take again so that a waiting process can take
+        // the semaphore. but sleep less than BLOCK_MS so that it is ready
+        // after the next taker is done
+        vTaskDelay(BLOCK_MS / 2);
     }
 }
 
@@ -108,7 +128,7 @@ void TestBinary(int num_tasks) {
         xTaskCreate(SemTaskFunc,
                     NULL,
                     STACK_SIZE,
-                    (void*) (i + 1),
+                    (void*) i,
                     Priorities[i], // assume that Priorities is configured
                     NULL);
     }
@@ -117,16 +137,24 @@ void TestBinary(int num_tasks) {
 }
 
 void TestBinarySamePriority() {
+    // all tasks should cycle through semaphore in the order of 0, 1, 2
     for (int i = 0; i < 3; ++i) {
         Priorities[i] = tskIDLE_PRIORITY + 1;
+        TaskInfos[i].require_give = REQUIRED;
+        TaskInfos[i].require_take = REQUIRED;
     }
 
     TestBinary(3);
 }
 
 void TestBinaryDiffPriority() {
+    // task 0 will take sem first
+    // then afterwards, task 1 and 2 will share semaphore since they are
+    // highest priority
     for (int i = 0; i < 3; ++i) {
         Priorities[i] = tskIDLE_PRIORITY + 1 + i;
+        TaskInfos[i].require_give = i == 0 ? NOT_REQUIRED : REQUIRED;
+        TaskInfos[i].require_take = i == 0 ? NOT_REQUIRED : REQUIRED;
     }
 
     TestBinary(3);
@@ -149,7 +177,7 @@ void TestCounting(int num_tasks) {
         xTaskCreate(SemTaskFunc,
                     NULL,
                     STACK_SIZE,
-                    (void*) (i + 1),
+                    (void*) i,
                     Priorities[i], // assume that Priorities is configured
                     NULL);
     }
@@ -158,19 +186,24 @@ void TestCounting(int num_tasks) {
 }
 
 void TestCountingSamePriority() {
-    for (int i = 0; i < 3; ++i) {
+    // all tasks should cycle through semaphore in the order of 0, 1, 2, 3, 4
+    for (int i = 0; i < 5; ++i) {
         Priorities[i] = tskIDLE_PRIORITY + 1;
+        TaskInfos[i].require_give = REQUIRED;
+        TaskInfos[i].require_take = REQUIRED;
     }
 
-    TestCounting(3);
+    TestCounting(5);
 }
 
 void TestCountingDiffPriority() {
-    // priorities should not matter since tasks sleep for varying amounts and
-    // the order they take semaphore is based on that
-    Priorities[0] = tskIDLE_PRIORITY + 1;
-    Priorities[1] = tskIDLE_PRIORITY + 3;
-    Priorities[2] = tskIDLE_PRIORITY + 2;
+    // task 0 will take sem first and then after that, it will be starved as
+    // the other 4 sems share the 2 resources
+    for (int i = 0; i < 5; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1 + i;
+        TaskInfos[i].require_give = i == 0 ? NOT_REQUIRED : REQUIRED;
+        TaskInfos[i].require_take = i == 0 ? NOT_REQUIRED : REQUIRED;
+    }
 
-    TestCounting(3);
+    TestCounting(5);
 }
