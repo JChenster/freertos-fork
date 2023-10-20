@@ -9,9 +9,10 @@
 /* Standard includes. */
 #include <stdio.h>
 
-#define BLOCK_MS pdMS_TO_TICKS(1000UL)
+#define BLOCK_MS pdMS_TO_TICKS(50UL)
+#define ITERATIONS (3)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define SEM_WAIT_MS pdMS_TO_TICKS(3500UL)
+#define SEM_WAIT_MS pdMS_TO_TICKS(200UL)
 
 #define NOT_REQUIRED (0)
 #define REQUIRED (1)
@@ -29,9 +30,9 @@ void TestCountingSamePriority();
 void TestCountingDiffPriority();
 
 // Set this to 1 to use MySemaphore, else use defualt
-# define USE_MY_SEM (1)
+#define USE_MY_SEM (0)
 // Set this to what test you want to run
-#define RUNNING_TEST (COUNTING_DIFF_PRIORITY)
+#define RUNNING_TEST (0)
 
 MySemaphoreHandle_t MySemaphore;
 SemaphoreHandle_t xSemaphore = NULL;
@@ -82,9 +83,10 @@ static void SemTaskFunc(void* pvParamaters) {
     TickType_t xNextWakeTime = xTaskGetTickCount();
 
     // sleep for a little so that smaller number tasks go first
-    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(100UL * (task_num + 1)));
+    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(5L * (task_num + 1)));
 
-    for (;;) {
+    // each process aims to take the sem a certain number of times
+    for (int takes = 0; takes < ITERATIONS; ++takes) {
         // take semaphore
         BaseType_t taken = SEM_TAKE();
         if (TaskInfos[task_num].require_take == REQUIRED) {
@@ -92,6 +94,7 @@ static void SemTaskFunc(void* pvParamaters) {
         }
         if (taken) {
             printf("Task %d TAKE SUCCESS\n", task_num);
+            ++takes;
         }
 
         // give the semaphore
@@ -111,6 +114,9 @@ static void SemTaskFunc(void* pvParamaters) {
         // after the next taker is done
         vTaskDelay(BLOCK_MS / 2);
     }
+
+    // delete itself
+    vTaskDelete(NULL);
 }
 
 // helper function for testing binary semaphore

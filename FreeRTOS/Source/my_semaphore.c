@@ -25,7 +25,6 @@ MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
     MySemaphoreHandle_t NewSemaphore = pvPortMalloc(sizeof(MySemaphore_t));
 
     if (NewSemaphore == NULL) {
-        // TODO: what to do when malloc fails?
         return NULL;
     }
 
