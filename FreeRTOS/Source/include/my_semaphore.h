@@ -13,7 +13,8 @@ typedef MySemaphore_t* MySemaphoreHandle_t;
 MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
                                       const UBaseType_t InitialCount);
 
-BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphoreHandle);
+BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
+                           TickType_t TicksToWait);
 
 BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle);
 

@@ -36,6 +36,9 @@ function run_and_kill() {
     echo -e "\tOutput file: $out"
 }
 
+# remove test output
+rm test_output/*.out
+
 for test_name in BINARY_SAME_PRIORITY BINARY_DIFF_PRIORITY \
                  COUNTING_SAME_PRIORITY COUNTING_DIFF_PRIORITY
 do

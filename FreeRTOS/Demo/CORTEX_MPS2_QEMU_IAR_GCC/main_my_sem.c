@@ -12,7 +12,7 @@
 #define BLOCK_MS pdMS_TO_TICKS(50UL)
 #define ITERATIONS (3)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define SEM_WAIT_MS pdMS_TO_TICKS(200UL)
+#define SEM_WAIT_TICKS pdMS_TO_TICKS(200UL)
 
 #define NOT_REQUIRED (0)
 #define REQUIRED (1)
@@ -50,11 +50,11 @@ task_info_t TaskInfos[MAX_TASKS];
 // Macros to take and give semaphore
 #if (USE_MY_SEM == 1)
     #define SEM_NAME "My Semaphore"
-    #define SEM_TAKE() MySemaphoreTake(MySemaphore)
+    #define SEM_TAKE() MySemaphoreTake(MySemaphore, SEM_WAIT_TICKS)
     #define SEM_GIVE() MySemaphoreGive(MySemaphore)
 #else
     #define SEM_NAME "Default Semaphore"
-    #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_MS)
+    #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_TICKS)
     #define SEM_GIVE() xSemaphoreGive(xSemaphore)
 #endif
 
@@ -83,7 +83,7 @@ static void SemTaskFunc(void* pvParamaters) {
     TickType_t xNextWakeTime = xTaskGetTickCount();
 
     // sleep for a little so that smaller number tasks go first
-    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(5L * (task_num + 1)));
+    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(5UL * (task_num + 1)));
 
     // each process aims to take the sem a certain number of times
     for (int takes = 0; takes < ITERATIONS; ++takes) {

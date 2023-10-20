@@ -37,10 +37,13 @@ MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
     return NewSemaphore;
 }
 
-BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore) {
+BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
+                           TickType_t TicksToWait)
+{
     // Check semaphore is non-null
     configASSERT(MySemaphore);
 
+    // enter critical section so only one task can obtain semaphore at a time
     taskENTER_CRITICAL();
 
     if (MySemaphore->Count > 0) {
@@ -64,8 +67,7 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore) {
     taskEXIT_CRITICAL();
 
     // wait to be notified that semaphore is available
-    const TickType_t xBlockTime = pdMS_TO_TICKS(10000);
-    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, xBlockTime);
+    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, TicksToWait);
 
     // task is now unblocked
     // if semaphore was obtained, ulNotifiedValue will be non-zero and give
