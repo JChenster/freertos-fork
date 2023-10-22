@@ -69,3 +69,6 @@ do
     # undo the edits
     sed -i "" "s/$running_test/$RUNNING_TEST_STR/" $TEST_FILE
 done
+
+# cleanup
+ps aux | grep "qemu-system-arm" | awk '{print $2}' | xargs kill -9
