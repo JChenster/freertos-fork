@@ -7,6 +7,8 @@
 
 #include "task.h"
 
+#define MAX_TICKS (-1)
+
 typedef struct MySemaphoreDefinition MySemaphore_t;
 typedef MySemaphore_t* MySemaphoreHandle_t;
 

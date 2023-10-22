@@ -9,10 +9,10 @@
 /* Standard includes. */
 #include <stdio.h>
 
-#define BLOCK_MS pdMS_TO_TICKS(50UL)
+#define BLOCK_TICKS pdMS_TO_TICKS(50UL)
 #define ITERATIONS (3)
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define SEM_WAIT_TICKS pdMS_TO_TICKS(200UL)
+#define SEM_WAIT_TICKS (BLOCK_TICKS * 4)
 
 #define NOT_REQUIRED (0)
 #define REQUIRED (1)
@@ -22,17 +22,26 @@
 #define BINARY_DIFF_PRIORITY (1)
 #define COUNTING_SAME_PRIORITY (2)
 #define COUNTING_DIFF_PRIORITY (3)
+#define GIVE_SAME_PRIORITY (4)
+#define GIVE_DIFF_PRIORITY (5)
 
 // Test function declarations
 void TestBinarySamePriority();
 void TestBinaryDiffPriority();
 void TestCountingSamePriority();
 void TestCountingDiffPriority();
+void TestGiveSamePriority();
+void TestGiveDiffPriority();
 
 // Set this to 1 to use MySemaphore, else use defualt
 #define USE_MY_SEM (0)
 // Set this to what test you want to run
 #define RUNNING_TEST (0)
+
+#define IS_BINARY_TEST (RUNNING_TEST == BINARY_SAME_PRIORITY || \
+                        RUNNING_TEST == BINARY_SAME_PRIORITY || \
+                        RUNNING_TEST == GIVE_SAME_PRIORITY || \
+                        RUNNING_TEST == GIVE_DIFF_PRIORITY)
 
 MySemaphoreHandle_t MySemaphore;
 SemaphoreHandle_t xSemaphore = NULL;
@@ -73,6 +82,12 @@ void main_my_sem(void) {
     #elif RUNNING_TEST == COUNTING_DIFF_PRIORITY
         printf("Running counting semaphore test with different priority tasks\n");
         TestCountingDiffPriority();
+    #elif RUNNING_TEST == GIVE_SAME_PRIORITY
+        printf("Running give semaphore test with same priority tasks\n");
+        TestGiveSamePriority();
+    #elif RUNNING_TEST == GIVE_DIFF_PRIORITY
+        printf("Running give semaphore test with different priority tasks\n");
+        TestGiveDiffPriority();
     #else
         printf("Invalid RUNNING_TEST\n");
     #endif
@@ -85,22 +100,29 @@ static void SemTaskFunc(void* pvParamaters) {
     // sleep for a little so that smaller number tasks go first
     vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(5UL * (task_num + 1)));
 
+    // default binary semaphorestarts with a task needing to give the semaphore
+    // so my semaphore intialization follows this too
+    if (task_num == 0 && IS_BINARY_TEST) {
+        SEM_GIVE();
+    }
+
     // each process aims to take the sem a certain number of times
-    for (int takes = 0; takes < ITERATIONS; ++takes) {
+    for (int takes = 0; takes < ITERATIONS;) {
         // take semaphore
         BaseType_t taken = SEM_TAKE();
         if (TaskInfos[task_num].require_take == REQUIRED) {
             configASSERT(taken == pdTRUE);
         }
-        if (taken) {
+
+        if (taken == pdTRUE) {
             printf("Task %d TAKE SUCCESS\n", task_num);
             ++takes;
         }
 
         // give the semaphore
-        if (taken) {
+        if (taken == pdTRUE) {
             // sleep and hold the semaphore
-            vTaskDelay(BLOCK_MS);
+            vTaskDelay(BLOCK_TICKS);
 
             printf("Task %d GIVE\n", task_num);
             BaseType_t given = SEM_GIVE();
@@ -110,28 +132,62 @@ static void SemTaskFunc(void* pvParamaters) {
         }
 
         // sleep before trying to take again so that a waiting process can take
-        // the semaphore. but sleep less than BLOCK_MS so that it is ready
+        // the semaphore. but sleep less than BLOCK_TICKS so that it is ready
         // after the next taker is done
-        vTaskDelay(BLOCK_MS / 2);
+        vTaskDelay(BLOCK_TICKS / 2);
     }
 
     // delete itself
     vTaskDelete(NULL);
 }
 
+static void GiveTaskFunc(void* pvParamaters) {
+    int task_num = (int) pvParamaters;
+    TickType_t xNextWakeTime = xTaskGetTickCount();
+
+    // sleep for a little so that smaller number tasks go first
+    vTaskDelayUntil(&xNextWakeTime, pdMS_TO_TICKS(5UL * (task_num + 1)));
+
+    // task 0 dummy give
+    if (task_num == 0) {
+        SEM_GIVE();
+    }
+
+    for (int i = 0; i < ITERATIONS; ++i) {
+        if (task_num == 0) {
+            // first process always take semaphore
+            // gives some time for all processes to give
+            vTaskDelay(2 * BLOCK_TICKS);
+
+            // take for every process
+            for (int j = 0; j < 3; ++j) {
+                SEM_TAKE();
+                printf("Task 0 TAKE\n");
+            }
+        } else {
+            // while the rest of the processes wait to give
+            SEM_GIVE();
+            printf("Task %d GIVE\n", task_num);
+            vTaskDelay(BLOCK_TICKS);
+        }
+    }
+
+    vTaskDelete(NULL);
+}
+
 // helper function for testing binary semaphore
-void TestBinary(int num_tasks) {
+void TestBinary(int num_tasks, void task_func (void*)) {
     // create binary semaphore
     #if (USE_MY_SEM == 1)
-        MySemaphore = MySemaphoreCreate(1, 1);
+        MySemaphore = MySemaphoreCreate(1, 0);
         configASSERT(MySemaphore);
     #else
-        vSemaphoreCreateBinary(xSemaphore);
+        xSemaphore = xSemaphoreCreateBinary();
         configASSERT(xSemaphore);
     #endif
 
     for (int i = 0; i < num_tasks; ++i) {
-        xTaskCreate(SemTaskFunc,
+        xTaskCreate(task_func,
                     NULL,
                     STACK_SIZE,
                     (void*) i,
@@ -150,7 +206,7 @@ void TestBinarySamePriority() {
         TaskInfos[i].require_take = REQUIRED;
     }
 
-    TestBinary(3);
+    TestBinary(3, SemTaskFunc);
 }
 
 void TestBinaryDiffPriority() {
@@ -163,7 +219,7 @@ void TestBinaryDiffPriority() {
         TaskInfos[i].require_take = i == 0 ? NOT_REQUIRED : REQUIRED;
     }
 
-    TestBinary(3);
+    TestBinary(3, SemTaskFunc);
 }
 
 void TestCounting(int num_tasks) {
@@ -212,4 +268,26 @@ void TestCountingDiffPriority() {
     }
 
     TestCounting(5);
+}
+
+// note that behavior of my semaphore and default semaphore differs here since
+// default semaphore give is non-blocking, while my semaphore give is blocking
+void TestGiveSamePriority() {
+    // task 0 takes sem
+    // tasks 1, 2, 3 should give sem in that order
+    for (int i = 0; i < 4; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1;
+    }
+
+    TestBinary(4, GiveTaskFunc);
+}
+
+void TestGiveDiffPriority() {
+    // task 0 takes sem
+    // tasks 3, 2, 1 should give sem in that order
+    for (int i = 0; i < 4; ++i) {
+        Priorities[i] = tskIDLE_PRIORITY + 1 + i;
+    }
+
+    TestBinary(4, GiveTaskFunc);
 }

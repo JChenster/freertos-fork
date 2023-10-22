@@ -46,14 +46,22 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
     // enter critical section so only one task can obtain semaphore at a time
     taskENTER_CRITICAL();
 
+    // Semaphore resource is available so take it
     if (MySemaphore->Count > 0) {
-        // Semaphore resource is available so take it
         --(MySemaphore->Count);
 
         // Since resource can no longer be full, if there are any waiting
         // givers, they are now able to give the resource
         if (listLIST_IS_EMPTY(&(MySemaphore->WaitingGivers)) == pdFALSE) {
-            // TODO
+            // Notify the next giver that resource is no longer full
+            vTaskRemoveFromSemList(&(MySemaphore->WaitingGivers), pdFALSE);
+
+            // Next giver gives semaphore, incrementing count of the semaphore
+            ++(MySemaphore->Count);
+
+            // Yield to same-priority giver if same priority since they have
+            // been waiting
+            taskYIELD();
         }
 
         taskEXIT_CRITICAL();
@@ -66,26 +74,26 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
     // exit critical section to allow task to be notified
     taskEXIT_CRITICAL();
 
-    // wait to be notified that semaphore is available
+    // wait to be notified that semaphore is available with timeout of
+    // TicksToWait
     uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, TicksToWait);
 
     // task is now unblocked
     // if semaphore was obtained, ulNotifiedValue will be non-zero and give
     // function will have already decremented semaphore count
-    return ulNotifiedValue > 0;
+    return ulNotifiedValue > 0 ? pdTRUE : pdFALSE;
 }
 
 BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
     // Check semaphore is non-null
     configASSERT(MySemaphore);
 
-    BaseType_t given = pdFALSE;
+    // enter critical section so only one task can give semaphore at a time
     taskENTER_CRITICAL();
 
+    // Resource is not full so give
     if (MySemaphore->Count < MySemaphore->MaxCount) {
-        // Resource is not full so give
         ++(MySemaphore->Count);
-        given = pdTRUE;
 
         // Since resource can no longer be empty, if there are any waiting
         // takers, they are now able to take the resource
@@ -93,14 +101,29 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
             // Notify the next taker that semaphore is ready
             vTaskRemoveFromSemList(&(MySemaphore->WaitingTakers), pdTRUE);
 
-            // Decrement count of the semaphore
+            // Next taker takes semaphore, decrementing count of the semaphore
             --(MySemaphore->Count);
+
+            // Yield to same-priority giver if same priority since they have
+            // been waiting
+            taskYIELD();
         }
-    } else {
-        // Resource full so add to list of waiting givers
-        // TODO
+
+        taskEXIT_CRITICAL();
+        return pdTRUE;
     }
 
+    // Semaphore resource full so add to list of waiting givers
+    vTaskPlaceOnSemList(&(MySemaphore->WaitingGivers), pdFALSE);
+
+    // exit critical section to allow task to be notified
     taskEXIT_CRITICAL();
-    return given;
+
+    // wait indefinitely to be notified that resource is not full
+    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, MAX_TICKS);
+
+    // task is now unblocked
+    // if resource was given, ulNotifiedValue will be non-zero and take
+    // function will have already incremented semaphore count
+    return ulNotifiedValue > 0 ? pdTRUE : pdFALSE;
 }

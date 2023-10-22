@@ -310,6 +310,7 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
 
     ListItem_t xStateListItem;                  /**< The list that the state list item of a task is reference from denotes the state of that task (Ready, Blocked, Suspended ). */
     ListItem_t xEventListItem;                  /**< Used to reference a task from an event list. */
+    ListItem_t xGiveListItem;
     ListItem_t xTakeListItem;
     UBaseType_t uxPriority;                     /**< The priority of the task.  0 is the lowest priority. */
     StackType_t * pxStack;                      /**< Points to the start of the stack. */
@@ -1594,6 +1595,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
 
     vListInitialiseItem( &( pxNewTCB->xStateListItem ) );
     vListInitialiseItem( &( pxNewTCB->xEventListItem ) );
+    vListInitialiseItem( &( pxNewTCB->xGiveListItem ) );
     vListInitialiseItem( &( pxNewTCB->xTakeListItem ) );
 
     /* Set the pxNewTCB as a link back from the ListItem_t.  This is so we can get
@@ -1604,12 +1606,17 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     listSET_LIST_ITEM_VALUE( &( pxNewTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
 
-    // Initialize take list item
-    // Order take list from highest to lowest priority
+    /* Initialize give/take list item
+     * Order give/take list from highest to lowest priority */
     listSET_LIST_ITEM_VALUE(
         &( pxNewTCB->xTakeListItem ),
         ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem ), pxNewTCB );
+
+    listSET_LIST_ITEM_VALUE(
+        &( pxNewTCB->xGiveListItem ),
+        ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
+    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xGiveListItem ), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
     {
@@ -4792,9 +4799,16 @@ void vTaskPlaceOnSemList ( List_t * const pxSemList,
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
 
-    if( xIsTakeList == pdTRUE )
+    /* Only place on semlist if not already on */
+    if( xIsTakeList == pdTRUE &&
+        pxCurrentTCB->xTakeListItem.pxContainer != pxSemList )
     {
         vListInsert( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
+    }
+    else if( xIsTakeList == pdFALSE &&
+             pxCurrentTCB->xGiveListItem.pxContainer != pxSemList )
+    {
+        vListInsert( pxSemList, &( pxCurrentTCB->xGiveListItem ) );
     }
 }
 /*-----------------------------------------------------------*/
@@ -4922,22 +4936,26 @@ BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 /*-----------------------------------------------------------*/
 
 void vTaskRemoveFromSemList( const List_t * const pxSemList,
-                                   const BaseType_t xIsTakeList )
+                             const BaseType_t xIsTakeList )
 {
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
 
-    // get task whose item we should remove from list and notify
+    /* Get task whose item we should remove from list and notify */
     TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
     configASSERT( pxHeadOwner );
 
-    // remove task take (give) item
+    /* Remove task take (give) item */
     if( xIsTakeList == pdTRUE )
     {
         listREMOVE_ITEM( &(pxHeadOwner->xTakeListItem) );
     }
+    else
+    {
+        listREMOVE_ITEM( &(pxHeadOwner->xGiveListItem) );
+    }
 
-    // notify task
+    /* Notify task */
     xTaskNotifyGive( pxHeadOwner );
 }
 /*-----------------------------------------------------------*/
