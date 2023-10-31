@@ -32,6 +32,7 @@ SOURCE_FILES += $(KERNEL_DIR)/stream_buffer.c
 SOURCE_FILES += $(KERNEL_DIR)/portable/MemMang/heap_4.c
 SOURCE_FILES += $(KERNEL_DIR)/portable/GCC/ARM_CM3/port.c
 SOURCE_FILES += $(KERNEL_DIR)/my_semaphore.c
+SOURCE_FILES += $(KERNEL_DIR)/my_queue.c
 
 #
 # Common demo files for the "full" build, as opposed to the "blinky" build -
@@ -82,6 +83,10 @@ SOURCE_FILES += (DEMO_PROJECT)/main_full.c
 
 # add my semaphore programs
 SOURCE_FILES += (DEMO_PROJECT)/main_my_sem.c
+
+# add my queue program
+SOURCE_FILES += (DEMO_PROJECT)/main_my_queue.c
+
 
 SOURCE_FILES += ./startup_gcc.c
 # Lightweight print formatting to use in place of the heavier GCC equivalent.
