@@ -341,8 +341,9 @@ void TimerCallbackFunc(TimerHandle_t Timer) {
                        &xHigherPriorityTaskWoken);
 }
 
+// DEPRACATED:
+// This test no longer makes sense for my sem
 void TestInterrupts() {
-    // this test only makes sense for my semaphore
     configASSERT(USE_MY_SEM == 1);
 
     MySemaphore = MySemaphoreCreate(5, 3);
