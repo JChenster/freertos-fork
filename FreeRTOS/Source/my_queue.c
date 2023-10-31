@@ -73,7 +73,7 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
         if (MySemaphoreGive(MyQueue->ItemSemaphore) == pdTRUE &&
             MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
         {
-            // write to Tail and then increment it
+            // write to Tail and then increment Tail
             memcpy((void*) MyQueue->Tail, ItemToQueue, MyQueue->ItemSize);
 
             MyQueue->Tail += MyQueue->ItemSize;
@@ -83,10 +83,34 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
 
             // done writing
             MySemaphoreGive(MyQueue->ModifySemaphore);
-
             return pdTRUE;
         }
     }
 
     return errQUEUE_FULL;
+}
+
+BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer) {
+    // Assume we wait indefinitely for send to succeed
+    for (;;) {
+        // get access to ItemSemaphore to pop an item and
+        // get mutual exclusive access to ModifySemaphore to read
+        if (MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY) == pdTRUE &&
+            MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
+        {
+            // read from Head and then increment Head
+            memcpy(Buffer, (void*) MyQueue->Head, MyQueue->ItemSize);
+
+            MyQueue->Head += MyQueue->ItemSize;
+            if (MyQueue->Head == MyQueue->BufferEnd) {
+                MyQueue->Head = MyQueue->BufferBegin;
+            }
+
+            // done reading
+            MySemaphoreGive(MyQueue->ModifySemaphore);
+            return pdTRUE;
+        }
+    }
+
+    return errQUEUE_EMPTY;
 }

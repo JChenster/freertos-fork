@@ -11,4 +11,9 @@ void main_my_queue(void) {
 
     int x = 5;
     MyQueueSendToBack(queue, &x);
+    printf("send successful\n");
+
+    int y;
+    MyQueueReceive(queue, &y);
+    printf("y = %d (should be 5)\n", y);
 }
