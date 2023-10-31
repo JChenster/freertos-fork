@@ -6,7 +6,9 @@
 #include <stdio.h>
 
 void main_my_queue(void) {
-    MyQueueHandle_t queue = MyQueueCreate();
-
+    MyQueueHandle_t queue = MyQueueCreate(10, sizeof(int));
     printf("%s\n", queue == NULL ? "null" : "gucci");
+
+    int x = 5;
+    MyQueueSendToBack(queue, &x);
 }
