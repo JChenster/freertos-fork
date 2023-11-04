@@ -75,7 +75,9 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
     return ulNotifiedValue > 0 ? pdTRUE : pdFALSE;
 }
 
-BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
+BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore,
+                           TickType_t TicksToWait)
+{
     // Check semaphore is non-null
     configASSERT(MySemaphore);
 
@@ -107,7 +109,7 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
     taskEXIT_CRITICAL();
 
     // wait indefinitely to be notified that resource is not full
-    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, TicksToWait);
 
     // task is now unblocked
     // if resource was given, ulNotifiedValue will be non-zero and take

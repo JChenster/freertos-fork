@@ -66,12 +66,14 @@ MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize) {
     return NewQueue;
 }
 
-BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
+BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
+                             const void* ItemToQueue,
+                             TickType_t TicksToWait)
+{
     // get access to ItemSemaphore to add an item
-    if (MySemaphoreGive(MyQueue->ItemSemaphore) == pdTRUE) {
+    if (MySemaphoreGive(MyQueue->ItemSemaphore, TicksToWait / 2) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to write
-        if (MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
-        {
+        if (MySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
             // write to Tail and then increment Tail
             memcpy((void*) MyQueue->Tail, ItemToQueue, MyQueue->ItemSize);
 
@@ -81,11 +83,12 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
             }
 
             // done writing
-            MySemaphoreGive(MyQueue->ModifySemaphore);
+            MySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
             return pdTRUE;
         } else {
             // we were unsuccessful getting ModifySemaphore so undo
-            // ItemSemaphore Give
+            // ItemSemaphore Give. Set TicksToWait as portMAX_DELAY since we
+            // always want this operation to succeed
             MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY);
         }
     }
@@ -93,12 +96,14 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
     return errQUEUE_FULL;
 }
 
-BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer) {
+BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
+                          void* Buffer,
+                          TickType_t TicksToWait)
+{
     // get access to ItemSemaphore to pop an item
-    if (MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY) == pdTRUE) {
+    if (MySemaphoreTake(MyQueue->ItemSemaphore, TicksToWait / 2) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to read
-        if (MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
-        {
+        if (MySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
             // read from Head and then increment Head
             memcpy(Buffer, (void*) MyQueue->Head, MyQueue->ItemSize);
 
@@ -108,12 +113,13 @@ BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer) {
             }
 
             // done reading
-            MySemaphoreGive(MyQueue->ModifySemaphore);
+            MySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
             return pdTRUE;
         } else {
             // we were unsuccessful getting ModifySemaphore so undo
-            // ItemSemaphore Take
-            MySemaphoreGive(MyQueue->ItemSemaphore);
+            // ItemSemaphore Take. Set TicksToWait as portMAX_DELAY since we
+            // always want this operation to succeed
+            MySemaphoreGive(MyQueue->ItemSemaphore, portMAX_DELAY);
         }
     }
 

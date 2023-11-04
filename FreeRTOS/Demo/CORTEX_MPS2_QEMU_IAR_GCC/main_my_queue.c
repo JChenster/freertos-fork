@@ -20,8 +20,12 @@
 // Macros to abstract away queue functions
 #if USE_MY_QUEUE == 1
     #define QUEUE_NAME "My Queue"
-    #define QUEUE_SEND_BACK(ITEM) MyQueueSendToBack(MyQueue, ((void*) (ITEM)))
-    #define QUEUE_RECEIVE(BUFFER) MyQueueReceive(MyQueue, ((void*) (BUFFER)))
+    #define QUEUE_SEND_BACK(ITEM) MyQueueSendToBack(MyQueue, \
+                                                    ((void*) (ITEM)), \
+                                                    portMAX_DELAY)
+    #define QUEUE_RECEIVE(BUFFER) MyQueueReceive(MyQueue, \
+                                                 ((void*) (BUFFER)), \
+                                                 portMAX_DELAY)
 #else
     #define QUEUE_NAME "Default Queue"
     #define QUEUE_SEND_BACK(ITEM) xQueueSendToBack(DefaultQueue, \

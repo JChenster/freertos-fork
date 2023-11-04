@@ -61,7 +61,7 @@ TaskHandle_t task_handle;
 #if (USE_MY_SEM == 1)
     #define SEM_NAME "My Semaphore"
     #define SEM_TAKE() MySemaphoreTake(MySemaphore, SEM_WAIT_TICKS)
-    #define SEM_GIVE() MySemaphoreGive(MySemaphore)
+    #define SEM_GIVE() MySemaphoreGive(MySemaphore, portMAX_DELAY)
 #else
     #define SEM_NAME "Default Semaphore"
     #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_TICKS)

@@ -14,6 +14,7 @@ MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
 BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
                            TickType_t TicksToWait);
 
-BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle);
+BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle,
+                           TickType_t TicksToWait);
 
 #endif // MYSEMAPHORE_H

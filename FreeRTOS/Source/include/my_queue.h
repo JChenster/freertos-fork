@@ -11,7 +11,11 @@ typedef struct MyQueueDefinition MyQueue_t;
 typedef MyQueue_t* MyQueueHandle_t;
 
 MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize);
-BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue);
-BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer);
+BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
+                             const void* ItemToQueue,
+                             TickType_t TicksToWait);
+BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
+                          void* Buffer,
+                          TickType_t TicksToWait);
 
 #endif // MYQUEUE_H
