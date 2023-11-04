@@ -58,10 +58,6 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
 
             // Next giver gives semaphore, incrementing count of the semaphore
             ++(MySemaphore->Count);
-
-            // Yield to same-priority giver if same priority since they have
-            // been waiting
-            taskYIELD();
         }
 
         taskEXIT_CRITICAL();
@@ -103,10 +99,6 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
 
             // Next taker takes semaphore, decrementing count of the semaphore
             --(MySemaphore->Count);
-
-            // Yield to same-priority giver if same priority since they have
-            // been waiting
-            taskYIELD();
         }
 
         taskEXIT_CRITICAL();

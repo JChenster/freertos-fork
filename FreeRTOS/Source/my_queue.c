@@ -4,6 +4,7 @@
 #include "my_semaphore.h"
 
 #include <string.h>
+#include <stdio.h>
 
 struct MyQueueDefinition {
     // Synchronization
@@ -66,12 +67,10 @@ MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize) {
 }
 
 BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
-    // Assume we wait indefinitely for send to succeed
-    for (;;) {
-        // get access to ItemSemaphore to add an item and
+    // get access to ItemSemaphore to add an item
+    if (MySemaphoreGive(MyQueue->ItemSemaphore) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to write
-        if (MySemaphoreGive(MyQueue->ItemSemaphore) == pdTRUE &&
-            MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
+        if (MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
         {
             // write to Tail and then increment Tail
             memcpy((void*) MyQueue->Tail, ItemToQueue, MyQueue->ItemSize);
@@ -84,6 +83,10 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
             // done writing
             MySemaphoreGive(MyQueue->ModifySemaphore);
             return pdTRUE;
+        } else {
+            // we were unsuccessful getting ModifySemaphore so undo
+            // ItemSemaphore Give
+            MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY);
         }
     }
 
@@ -91,12 +94,10 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue, const void* ItemToQueue) {
 }
 
 BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer) {
-    // Assume we wait indefinitely for send to succeed
-    for (;;) {
-        // get access to ItemSemaphore to pop an item and
+    // get access to ItemSemaphore to pop an item
+    if (MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to read
-        if (MySemaphoreTake(MyQueue->ItemSemaphore, portMAX_DELAY) == pdTRUE &&
-            MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
+        if (MySemaphoreTake(MyQueue->ModifySemaphore, portMAX_DELAY) == pdTRUE)
         {
             // read from Head and then increment Head
             memcpy(Buffer, (void*) MyQueue->Head, MyQueue->ItemSize);
@@ -109,6 +110,10 @@ BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue, void* Buffer) {
             // done reading
             MySemaphoreGive(MyQueue->ModifySemaphore);
             return pdTRUE;
+        } else {
+            // we were unsuccessful getting ModifySemaphore so undo
+            // ItemSemaphore Take
+            MySemaphoreGive(MyQueue->ItemSemaphore);
         }
     }
 

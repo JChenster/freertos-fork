@@ -27,7 +27,7 @@
 #define GIVE_DIFF_PRIORITY (5)
 #define INTERRUPTS (6)
 
-// Set this to 1 to use MySemaphore, else use defualt
+// Set this to 1 to use MySemaphore, else use default
 #define USE_MY_SEM (0)
 // Set this to what test you want to run
 #define RUNNING_TEST (0)
@@ -67,6 +67,7 @@ TaskHandle_t task_handle;
     #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_TICKS)
     #define SEM_GIVE() xSemaphoreGive(xSemaphore)
 #endif
+
 // Test function declarations
 void TestBinarySamePriority();
 void TestBinaryDiffPriority();
