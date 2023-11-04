@@ -4,17 +4,12 @@
 #include "my_semaphore.h"
 #include "task.h"
 
-// TODO: is this necessary?
-/* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
- * all the API functions to use the MPU wrappers.  That should only be done when
- * task.h is included from an application file. */
-#define MPU_WRAPPERS_INCLUDED_FROM_API_FILE
-
 struct MySemaphoreDefinition {
     UBaseType_t Count;
     UBaseType_t MaxCount;
 
-    // list of givers (takers) ordered by when task calls give (take)
+    // list of givers (takers) ordered by priority and then when task calls
+    // give (take)
     List_t WaitingGivers;
     List_t WaitingTakers;
 };
@@ -112,7 +107,7 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore) {
     taskEXIT_CRITICAL();
 
     // wait indefinitely to be notified that resource is not full
-    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, MAX_TICKS);
+    uint32_t ulNotifiedValue = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
     // task is now unblocked
     // if resource was given, ulNotifiedValue will be non-zero and take

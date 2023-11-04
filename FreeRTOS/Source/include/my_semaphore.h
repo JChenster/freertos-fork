@@ -5,10 +5,6 @@
      #error "include FreeRTOS.h" must appear in source files before "include queue.h"
  #endif
 
-#include "task.h"
-
-#define MAX_TICKS (-1)
-
 typedef struct MySemaphoreDefinition MySemaphore_t;
 typedef MySemaphore_t* MySemaphoreHandle_t;
 
