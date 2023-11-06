@@ -66,7 +66,7 @@ TaskHandle_t task_handle;
     #define SEM_TAKE_ISR(WOKEN) \
         xSemaphoreTakeFromISR(xSemaphore, (BaseType_t*) (WOKEN))
     #define SEM_GIVE_ISR(WOKEN) \
-        xSemaphoreGiveFromISR(xSemaphore, (BaseType_t*) (WOKEN))
+        MySemaphoreGiveFromISR(MySemaphore, (BaseType_t*) (WOKEN))
 #else
     #define SEM_NAME "Default Semaphore"
     #define SEM_TAKE() xSemaphoreTake(xSemaphore, SEM_WAIT_TICKS)

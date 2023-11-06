@@ -116,3 +116,34 @@ BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphore,
     // function will have already incremented semaphore count
     return ulNotifiedValue > 0 ? pdTRUE : pdFALSE;
 }
+
+BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
+                                  BaseType_t* HigherPriorityTaskWoken)
+{
+    // Taking semaphore from ISR works exactly the same as without ISR except
+    // we do not wait for semaphore if it is full
+    configASSERT(MySemaphore);
+
+    BaseType_t given = pdFALSE;
+
+    // ISR must use special critical section
+    UBaseType_t SavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+
+    if (MySemaphore->Count < MySemaphore->MaxCount) {
+        ++(MySemaphore->Count);
+
+        if (listLIST_IS_EMPTY(&(MySemaphore->WaitingTakers)) == pdFALSE) {
+            // Set HigherPriorityTaskWoken indicator here
+            *HigherPriorityTaskWoken =
+                vTaskRemoveFromSemList(&(MySemaphore->WaitingTakers), pdTRUE);
+
+            --(MySemaphore->Count);
+        }
+
+        return pdTRUE;
+    }
+
+    taskEXIT_CRITICAL_FROM_ISR(SavedInterruptStatus);
+
+    return given;
+}

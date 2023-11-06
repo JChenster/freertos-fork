@@ -29,6 +29,7 @@
 /* Standard includes. */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
  * all the API functions to use the MPU wrappers.  That should only be done when
@@ -4898,6 +4899,9 @@ BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 
     #if ( configNUMBER_OF_CORES == 1 )
     {
+//        printf("JEFF DEBUG: unblocked %d vs blocked %d\n",
+//               (int) pxUnblockedTCB->uxPriority,
+//               (int) pxCurrentTCB->uxPriority);
         if( pxUnblockedTCB->uxPriority > pxCurrentTCB->uxPriority )
         {
             /* Return true if the task removed from the event list has a higher
@@ -4935,8 +4939,8 @@ BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 }
 /*-----------------------------------------------------------*/
 
-void vTaskRemoveFromSemList( const List_t * const pxSemList,
-                             const BaseType_t xIsTakeList )
+BaseType_t vTaskRemoveFromSemList( const List_t * const pxSemList,
+                                   const BaseType_t xIsTakeList )
 {
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
@@ -4957,7 +4961,15 @@ void vTaskRemoveFromSemList( const List_t * const pxSemList,
 
     /* Notify task */
     xTaskNotifyGive( pxHeadOwner );
+
+    /* Returns if the removed task priority is greater than priority of
+     * currently running task */
+//    printf("JEFF DEBUG: Removed Item Priority : %d, Current Priority: %d\n",
+//            (int) pxHeadOwner->uxPriority,
+//            (int) pxCurrentTCB->uxPriority);
+    return pxHeadOwner->uxPriority > pxCurrentTCB->uxPriority ? pdTRUE : pdFALSE;
 }
+
 /*-----------------------------------------------------------*/
 
 void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
