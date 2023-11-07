@@ -64,7 +64,7 @@ TaskHandle_t task_handle;
     #define SEM_GIVE() MySemaphoreGive(MySemaphore, portMAX_DELAY)
     // TODO: Temporary Definitions
     #define SEM_TAKE_ISR(WOKEN) \
-        xSemaphoreTakeFromISR(xSemaphore, (BaseType_t*) (WOKEN))
+        MySemaphoreTakeFromISR(MySemaphore, (BaseType_t*) (WOKEN))
     #define SEM_GIVE_ISR(WOKEN) \
         MySemaphoreGiveFromISR(MySemaphore, (BaseType_t*) (WOKEN))
 #else
@@ -381,11 +381,19 @@ void TestTakeFromISR() {
     // This test only makes sense for MySemaphore since default semaphore does
     // not block
     // https://stackoverflow.com/questions/69814969/freertos-how-could-xsemaphoretakefromisr-wake-any-task
-    configASSERT(USE_MY_SEM == 1);
+//    configASSERT(USE_MY_SEM == 1);
 
-    // initialize counting semaphore
-    xSemaphore = xSemaphoreCreateCounting(2, 0);
-    configASSERT(xSemaphore);
+    // create counting semaphore
+    UBaseType_t max_count = 2;
+    UBaseType_t init_count = 0;
+
+    #if (USE_MY_SEM == 1)
+        MySemaphore = MySemaphoreCreate(max_count, init_count);
+        configASSERT(MySemaphore);
+    #else
+        xSemaphore = xSemaphoreCreateCounting(max_count, init_count);
+        configASSERT(xSemaphore);
+    #endif
 
     TimerHandle_t xTimer = xTimerCreate(NULL,
                                         pdMS_TO_TICKS(100), // timer period

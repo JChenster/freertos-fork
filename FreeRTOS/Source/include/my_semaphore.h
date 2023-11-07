@@ -17,6 +17,9 @@ BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
 BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle,
                            TickType_t TicksToWait);
 
+BaseType_t MySemaphoreTakeFromISR(MySemaphoreHandle_t MySemaphore,
+                                  BaseType_t* HigherPriorityTaskWoken);
+
 BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
                                   BaseType_t* HigherPriorityTaskWoken);
 

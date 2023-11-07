@@ -4969,7 +4969,6 @@ BaseType_t vTaskRemoveFromSemList( const List_t * const pxSemList,
 //            (int) pxCurrentTCB->uxPriority);
     return pxHeadOwner->uxPriority > pxCurrentTCB->uxPriority ? pdTRUE : pdFALSE;
 }
-
 /*-----------------------------------------------------------*/
 
 void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
