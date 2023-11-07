@@ -70,7 +70,7 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
                              const void* ItemToQueue,
                              TickType_t TicksToWait)
 {
-    // get access to ItemSemaphore to add an item
+    // get access to ItemSemaphore to push an item
     if (MySemaphoreGive(MyQueue->ItemSemaphore, TicksToWait / 2) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to write
         if (MySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
@@ -124,4 +124,43 @@ BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
     }
 
     return errQUEUE_EMPTY;
+}
+
+BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
+                                    const void* ItemToQueue,
+                                    BaseType_t* HigherPriorityTaskWoken)
+{
+    BaseType_t ret = errQUEUE_FULL;
+
+    // attempt to get ModifySemaphore without waiting
+    // taking ModifySemaphore should not awaken any givers since the giver of
+    // ModifySemaphore is always the taker so we should never have any
+    // processes waiting to give so HigherPriorityTaskWoken parameter is
+    // irrelevant here
+    if (MySemaphoreTakeFromISR(MyQueue->ModifySemaphore, NULL) == pdTRUE) {
+        // Attempt to give semaphore to push an item
+        BaseType_t SemHigherPriorityTaskWoken;
+        if (MySemaphoreGiveFromISR(MyQueue->ItemSemaphore,
+                                   &SemHigherPriorityTaskWoken) == pdTRUE)
+        {
+            // write to Tail and then increment Tail
+            memcpy((void*) MyQueue->Tail, ItemToQueue, MyQueue->ItemSize);
+
+            MyQueue->Tail += MyQueue->ItemSize;
+            if (MyQueue->Tail == MyQueue->BufferEnd) {
+                MyQueue->Tail = MyQueue->BufferBegin;
+            }
+
+            ret = pdTRUE;
+
+            // a task may be woken from giving to ItemSemaphore
+            if (HigherPriorityTaskWoken != NULL) {
+                *HigherPriorityTaskWoken = SemHigherPriorityTaskWoken;
+            }
+        }
+        // done modifying, this should always succeed
+        MySemaphoreGiveFromISR(MyQueue->ModifySemaphore, NULL);
+    }
+
+    return ret;
 }

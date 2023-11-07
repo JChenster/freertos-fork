@@ -20,20 +20,20 @@
 // Macros to abstract away queue functions
 #if USE_MY_QUEUE == 1
     #define QUEUE_NAME "My Queue"
-    #define QUEUE_SEND_BACK(ITEM) MyQueueSendToBack(MyQueue, \
-                                                    ((void*) (ITEM)), \
-                                                    portMAX_DELAY)
-    #define QUEUE_RECEIVE(BUFFER) MyQueueReceive(MyQueue, \
-                                                 ((void*) (BUFFER)), \
-                                                 portMAX_DELAY)
+    #define QUEUE_SEND_BACK(ITEM, DELAY) MyQueueSendToBack(MyQueue, \
+                                                           ((void*) (ITEM)), \
+                                                           (DELAY))
+    #define QUEUE_RECEIVE(BUFFER, DELAY) MyQueueReceive(MyQueue, \
+                                                        ((void*) (BUFFER)), \
+                                                        (DELAY))
 #else
     #define QUEUE_NAME "Default Queue"
-    #define QUEUE_SEND_BACK(ITEM) xQueueSendToBack(DefaultQueue, \
-                                                   ((void*) (ITEM)), \
-                                                   portMAX_DELAY)
-    #define QUEUE_RECEIVE(BUFFER) xQueueReceive(DefaultQueue, \
-                                                ((void*) (BUFFER)), \
-                                                portMAX_DELAY)
+    #define QUEUE_SEND_BACK(ITEM, DELAY) xQueueSendToBack(DefaultQueue, \
+                                                          ((void*) (ITEM)), \
+                                                          (DELAY))
+    #define QUEUE_RECEIVE(BUFFER, DELAY) xQueueReceive(DefaultQueue, \
+                                                       ((void*) (BUFFER)), \
+                                                       (DELAY))
 #endif
 
 // Global queue variables
@@ -74,11 +74,11 @@ void SimpleTaskFunc(void* parameters) {
     InitializeQueue(8, sizeof(int));
 
     int x = 5;
-    QUEUE_SEND_BACK(&x);
+    QUEUE_SEND_BACK(&x, portMAX_DELAY);
     printf("Sent %d\n", x);
 
     int y;
-    QUEUE_RECEIVE(&y);
+    QUEUE_RECEIVE(&y, portMAX_DELAY);
     printf("Received %d\n", y);
 
     vTaskDelete(NULL);
@@ -101,7 +101,7 @@ static void ProducerTaskFunc(void* Parameters) {
     int supply = 10;
 
     for (int i = 0; i < supply; ++i) {
-        QUEUE_SEND_BACK(&i);
+        QUEUE_SEND_BACK(&i, portMAX_DELAY);
         printf("Sent %d\n", i);
         vTaskDelay(pdMS_TO_TICKS(5));
     }
@@ -115,7 +115,7 @@ static void ConsumerTaskFunc(void* Parameters) {
 
     for (int i = 0; i < reads; i++) {
         int value;
-        QUEUE_RECEIVE(&value);
+        QUEUE_RECEIVE(&value, portMAX_DELAY);
         printf("Received %d\n", value);
         vTaskDelay(pdMS_TO_TICKS(25));
     }

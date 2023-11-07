@@ -133,9 +133,13 @@ BaseType_t MySemaphoreTakeFromISR(MySemaphoreHandle_t MySemaphore,
         --(MySemaphore->Count);
 
         if (listLIST_IS_EMPTY(&(MySemaphore->WaitingGivers)) == pdFALSE) {
-            // Set HigherPriorityTaskWoken indicator here
-            *HigherPriorityTaskWoken =
+            BaseType_t IsHigherPriorityTaskWoken =
                 vTaskRemoveFromSemList(&(MySemaphore->WaitingGivers), pdFALSE);
+
+            // Set HigherPriorityTaskWoken indicator here if not NULL
+            if (HigherPriorityTaskWoken != NULL) {
+                *HigherPriorityTaskWoken = IsHigherPriorityTaskWoken;
+            }
 
             ++(MySemaphore->Count);
         }
@@ -163,9 +167,13 @@ BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
         ++(MySemaphore->Count);
 
         if (listLIST_IS_EMPTY(&(MySemaphore->WaitingTakers)) == pdFALSE) {
-            // Set HigherPriorityTaskWoken indicator here
-            *HigherPriorityTaskWoken =
+            BaseType_t IsHigherPriorityTaskWoken =
                 vTaskRemoveFromSemList(&(MySemaphore->WaitingTakers), pdTRUE);
+
+            // Set HigherPriorityTaskWoken indicator here if not NULL
+            if (HigherPriorityTaskWoken != NULL) {
+                *HigherPriorityTaskWoken = IsHigherPriorityTaskWoken;
+            }
 
             --(MySemaphore->Count);
         }

@@ -381,7 +381,7 @@ void TestTakeFromISR() {
     // This test only makes sense for MySemaphore since default semaphore does
     // not block
     // https://stackoverflow.com/questions/69814969/freertos-how-could-xsemaphoretakefromisr-wake-any-task
-//    configASSERT(USE_MY_SEM == 1);
+    configASSERT(USE_MY_SEM == 1);
 
     // create counting semaphore
     UBaseType_t max_count = 2;
