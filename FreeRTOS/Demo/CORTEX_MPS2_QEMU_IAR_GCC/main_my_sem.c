@@ -30,7 +30,7 @@
 // Set this to 1 to use MySemaphore, else use default
 #define USE_MY_SEM (0)
 // Set this to what test you want to run
-#define RUNNING_TEST (0)
+#define RUNNING_TEST (GIVE_FROM_ISR)
 
 #define IS_BINARY_TEST (RUNNING_TEST == BINARY_SAME_PRIORITY || \
                         RUNNING_TEST == BINARY_DIFF_PRIORITY || \
