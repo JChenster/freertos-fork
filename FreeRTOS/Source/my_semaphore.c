@@ -184,3 +184,22 @@ BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
     taskEXIT_CRITICAL_FROM_ISR(SavedInterruptStatus);
     return given;
 }
+
+BaseType_t MySemaphoreTakeAvailableFromISR(MySemaphoreHandle_t MySemaphore) {
+    configASSERT(MySemaphore);
+
+    UBaseType_t SavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+    BaseType_t Available = MySemaphore->Count > 0 ? pdTRUE : pdFALSE;
+    taskEXIT_CRITICAL_FROM_ISR(SavedInterruptStatus);
+    return Available;
+}
+
+BaseType_t MySemaphoreGiveAvailableFromISR(MySemaphoreHandle_t MySemaphore) {
+    configASSERT(MySemaphore);
+
+    UBaseType_t SavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
+    BaseType_t Available = MySemaphore->Count < MySemaphore->MaxCount ? pdTRUE
+                                                                      : pdFALSE;
+    taskEXIT_CRITICAL_FROM_ISR(SavedInterruptStatus);
+    return Available;
+}

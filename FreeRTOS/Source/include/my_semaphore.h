@@ -23,4 +23,8 @@ BaseType_t MySemaphoreTakeFromISR(MySemaphoreHandle_t MySemaphore,
 BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
                                   BaseType_t* HigherPriorityTaskWoken);
 
+BaseType_t MySemaphoreTakeAvailableFromISR(MySemaphoreHandle_t MySemaphore);
+
+BaseType_t MySemaphoreGiveAvailableFromISR(MySemaphoreHandle_t MySemaphore);
+
 #endif // MYSEMAPHORE_H
