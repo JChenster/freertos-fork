@@ -55,6 +55,9 @@ static void HardFault_Handler( void ) __attribute__( ( naked ) );
 static void Default_Handler( void ) __attribute__( ( naked ) );
 void Reset_Handler( void );
 
+/* Custom handlers */
+extern void SemGiveFromISRHandler( void );
+
 extern int main( void );
 extern uint32_t _estack;
 
@@ -77,7 +80,7 @@ const uint32_t* isr_vector[] __attribute__((section(".isr_vector"))) =
     0, // reserved
     ( uint32_t * ) &xPortPendSVHandler, // PendSV handler    -2
     ( uint32_t * ) &xPortSysTickHandler,// SysTick_Handler   -1
-    0,
+    ( uint32_t * ) &SemGiveFromISRHandler, // 0
     0,
     0,
     0,

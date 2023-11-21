@@ -6,6 +6,10 @@
 #include "semphr.h"
 #include "my_semaphore.h"
 
+/* Hardware includes */
+#include "CMSDK_CM3.h"
+#include "core_cm3.h"
+
 /* Standard includes. */
 #include <stdio.h>
 
@@ -30,12 +34,14 @@
 // Set this to 1 to use MySemaphore, else use default
 #define USE_MY_SEM (0)
 // Set this to what test you want to run
-#define RUNNING_TEST (GIVE_FROM_ISR)
+#define RUNNING_TEST (0)
 
 #define IS_BINARY_TEST (RUNNING_TEST == BINARY_SAME_PRIORITY || \
                         RUNNING_TEST == BINARY_DIFF_PRIORITY || \
                         RUNNING_TEST == GIVE_SAME_PRIORITY || \
                         RUNNING_TEST == GIVE_DIFF_PRIORITY)
+
+#define GIVE_FROM_ISR_IRQN (UARTRX0_IRQn)
 
 // Semaphores
 MySemaphoreHandle_t MySemaphore;
@@ -62,7 +68,6 @@ TaskHandle_t task_handle;
     #define SEM_NAME "My Semaphore"
     #define SEM_TAKE() MySemaphoreTake(MySemaphore, SEM_WAIT_TICKS)
     #define SEM_GIVE() MySemaphoreGive(MySemaphore, portMAX_DELAY)
-    // TODO: Temporary Definitions
     #define SEM_TAKE_ISR(WOKEN) \
         MySemaphoreTakeFromISR(MySemaphore, (BaseType_t*) (WOKEN))
     #define SEM_GIVE_ISR(WOKEN) \
@@ -112,7 +117,7 @@ void main_my_sem(void) {
         printf("Running take from ISR test\n");
         TestTakeFromISR();
     #elif RUNNING_TEST == GIVE_FROM_ISR
-        printf("Running \n");
+        printf("Running give from ISR test\n");
         TestGiveFromISR();
     #else
         printf("Invalid RUNNING_TEST\n");
@@ -442,18 +447,56 @@ void GiveFromISRTimerFunc(TimerHandle_t Timer) {
     }
 }
 
-void GiveFromISRTaskFunc(void* pvParamaters) {
+int GiveFromISRTestCalls = 0;
+
+void CallIRQN(IRQn_Type irqn, uint32_t Priority) {
+    uint32_t priority = NVIC_EncodePriority(0, Priority, 0);
+    NVIC_SetPriority(irqn, priority);
+    NVIC_EnableIRQ(irqn);
+    NVIC_SetPendingIRQ(irqn);
+}
+
+void SemGiveFromISRHandler() {
+    printf("GiveFromISRTestHandler GiveFromISR\n");
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    BaseType_t given = SEM_GIVE_ISR(&xHigherPriorityTaskWoken);
+
+    if (GiveFromISRTestCalls == 0) {
+        configASSERT(given == pdTRUE);
+        configASSERT(xHigherPriorityTaskWoken == pdFALSE);
+    } else if (GiveFromISRTestCalls == 1) {
+        configASSERT(given == pdFALSE);
+        configASSERT(xHigherPriorityTaskWoken == pdFALSE);
+    } else if (GiveFromISRTestCalls == 2) {
+        configASSERT(given == pdTRUE);
+        configASSERT(xHigherPriorityTaskWoken == pdTRUE);
+    }
+
+    ++GiveFromISRTestCalls;
+}
+
+int CallInteruptGiveFromISR = 0;
+
+void GiveFromISRHighPriorityTaskFunc(void* pvParamaters) {
     (void) pvParamaters;
 
-    // wait for two timer calls
-    vTaskDelay(pdMS_TO_TICKS(225));
+    // semaphore has initial count of 1 and max count of 2
+    // summon interrupt to call GiveFromISR twice
+    // first GiveFromISR should succeed, second should fail
+    CallIRQN(GIVE_FROM_ISR_IRQN, 1);
+    CallIRQN(GIVE_FROM_ISR_IRQN, 1);
 
-    // these two should go through easily
+    // count of semaphore should be 2 so 2 takes should be successful
     printf("TAKE\n");
     configASSERT(SEM_TAKE() == pdTRUE);
     printf("TAKE\n");
     configASSERT(SEM_TAKE() == pdTRUE);
-    // we must wait now for the TAKE from timer again
+
+    // semaphore is now empty so we must wait now for the TAKE from interrupt
+    // to give the semaphore
+    // when we wait to take, lower priority will go and we should indicate to
+    // it to call the GiveFromISR interrupt
+    CallInteruptGiveFromISR = 1;
     printf("Waiting to TAKE\n");
     configASSERT(SEM_TAKE() == pdTRUE);
     printf("Done TAKE\n");
@@ -461,11 +504,23 @@ void GiveFromISRTaskFunc(void* pvParamaters) {
     vTaskDelete(NULL);
 }
 
+void GiveFromISRLowPriorityTaskFunc(void* pvParamaters) {
+    (void) pvParamaters;
+
+    for (;;) {
+        if (CallInteruptGiveFromISR) {
+            CallIRQN(GIVE_FROM_ISR_IRQN, 1);
+            vTaskDelete(NULL);
+        }
+    }
+}
+
 void TestGiveFromISR() {
     // Test the following scenarios
     // 1) When count < max_count, then we should be able to take successfully
     // 2) When count == max_count, then we fail to give
-    // 3) xHigherPriorityTaskWoken
+    // 3) When a GiveFromISR causes a higher priority task to be woken, then
+    //    xHigherPriorityTaskWoken should be set appropriately
 
     // create counting semaphore
     UBaseType_t max_count = 2;
@@ -479,26 +534,18 @@ void TestGiveFromISR() {
         configASSERT(xSemaphore);
     #endif
 
-    TimerHandle_t xTimer = xTimerCreate(NULL,
-                                        pdMS_TO_TICKS(100), // timer period
-                                        pdTRUE, // reload
-                                        NULL,
-                                        GiveFromISRTimerFunc);
-    xTimerStart(xTimer, 0);
-
-    xTaskCreate(GiveFromISRTaskFunc,
+    xTaskCreate(GiveFromISRHighPriorityTaskFunc,
                 NULL,
                 STACK_SIZE,
                 NULL,
                 tskIDLE_PRIORITY + 2,
                 NULL);
-    BusyTaskHandle = xTaskCreateStatic(BusyTaskFunc,
-                                       NULL,
-                                       STACK_SIZE,
-                                       NULL,
-                                       tskIDLE_PRIORITY + 1,
-                                       Stack,
-                                       &TaskBuffer);
+    xTaskCreate(GiveFromISRLowPriorityTaskFunc,
+                NULL,
+                STACK_SIZE,
+                NULL,
+                tskIDLE_PRIORITY + 1,
+                NULL);
 
     vTaskStartScheduler();
 }

@@ -4939,8 +4939,33 @@ BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t vTaskRemoveFromSemList( const List_t * const pxSemList,
-                                   const BaseType_t xIsTakeList )
+void vTaskRemoveFromSemList( const List_t * const pxSemList,
+                             const BaseType_t xIsTakeList )
+{
+    configASSERT( pxSemList );
+    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+
+    /* Get task whose item we should remove from semaphore list and notify */
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
+    configASSERT( pxHeadOwner );
+
+    /* Remove task take (give) item */
+    if( xIsTakeList == pdTRUE )
+    {
+        listREMOVE_ITEM( &(pxHeadOwner->xTakeListItem) );
+    }
+    else
+    {
+        listREMOVE_ITEM( &(pxHeadOwner->xGiveListItem) );
+    }
+
+    /* Notify task that it ready */
+    xTaskNotifyGive( pxHeadOwner );
+}
+/*-----------------------------------------------------------*/
+
+BaseType_t vTaskRemoveFromSemListFromISR ( const List_t * const pxSemList,
+                                           const BaseType_t xIsTakeList )
 {
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
@@ -4959,15 +4984,13 @@ BaseType_t vTaskRemoveFromSemList( const List_t * const pxSemList,
         listREMOVE_ITEM( &(pxHeadOwner->xGiveListItem) );
     }
 
-    /* Notify task */
-    xTaskNotifyGive( pxHeadOwner );
+    /* Notify task that it is ready */
+    BaseType_t xHigherPriorityTaskWoken;
+    vTaskNotifyGiveFromISR( pxHeadOwner, &xHigherPriorityTaskWoken );
 
     /* Returns if the removed task priority is greater than priority of
      * currently running task */
-//    printf("JEFF DEBUG: Removed Item Priority : %d, Current Priority: %d\n",
-//            (int) pxHeadOwner->uxPriority,
-//            (int) pxCurrentTCB->uxPriority);
-    return pxHeadOwner->uxPriority > pxCurrentTCB->uxPriority ? pdTRUE : pdFALSE;
+    return xHigherPriorityTaskWoken;
 }
 /*-----------------------------------------------------------*/
 
