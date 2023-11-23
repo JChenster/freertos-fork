@@ -58,6 +58,7 @@ void Reset_Handler( void );
 /* Custom handlers */
 extern void SemGiveFromISRHandler( void );
 extern void SemTakeFromISRHandler( void );
+extern void QueueSendFromISRHandler( void );
 
 extern int main( void );
 extern uint32_t _estack;
@@ -83,7 +84,7 @@ const uint32_t* isr_vector[] __attribute__((section(".isr_vector"))) =
     ( uint32_t * ) &xPortSysTickHandler,// SysTick_Handler   -1
     ( uint32_t * ) &SemGiveFromISRHandler, // 0
     ( uint32_t * ) &SemTakeFromISRHandler, // 1
-    0,
+    ( uint32_t * ) &QueueSendFromISRHandler, // 2
     0,
     0,
     0,

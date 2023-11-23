@@ -13,7 +13,7 @@ USE_DEFAULT_QUEUE="#define USE_MY_QUEUE (0)"
 
 set_up
 
-for test_name in SIMPLE PRODUCER_CONSUMER_SIMPLE
+for test_name in SIMPLE FAST_SLOW SLOW_FAST SEND_BACK_ISR
 do
     # set test
     running_test="#define RUNNING_TEST ($test_name)"

@@ -156,7 +156,8 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
         if (MySemaphoreTakeAvailableFromISR(MyQueue->EmptySemaphore) == pdTRUE &&
             MySemaphoreGiveAvailableFromISR(MyQueue->FullSemaphore) == pdTRUE)
         {
-            BaseType_t EmptyWoken, FullWoken;
+            BaseType_t EmptyWoken = pdFALSE;
+            BaseType_t FullWoken = pdFALSE;
 
             // take EmptySempahore to push an item and ensure it succeeds
             configASSERT(MySemaphoreTakeFromISR(MyQueue->EmptySemaphore,

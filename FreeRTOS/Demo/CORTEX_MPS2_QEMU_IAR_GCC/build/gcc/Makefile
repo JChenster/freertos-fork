@@ -81,10 +81,9 @@ SOURCE_FILES += (DEMO_PROJECT)/main.c
 SOURCE_FILES += (DEMO_PROJECT)/main_blinky.c
 SOURCE_FILES += (DEMO_PROJECT)/main_full.c
 
-# add my semaphore programs
+# My programs
+SOURCE_FILES += (DEMO_PROJECT)/util.c
 SOURCE_FILES += (DEMO_PROJECT)/main_my_sem.c
-
-# add my queue program
 SOURCE_FILES += (DEMO_PROJECT)/main_my_queue.c
 
 

@@ -6,9 +6,7 @@
 #include "semphr.h"
 #include "my_semaphore.h"
 
-/* Hardware includes */
 #include "CMSDK_CM3.h"
-#include "core_cm3.h"
 
 /* Standard includes. */
 #include <stdio.h>
@@ -92,6 +90,9 @@ void TestGiveSamePriority();
 void TestGiveDiffPriority();
 void TestTakeFromISR();
 void TestGiveFromISR();
+
+// util functions
+extern void CallIRQN(IRQn_Type irqn, uint32_t Priority);
 
 void main_my_sem(void) {
     printf("Using %s\n", SEM_NAME);
@@ -323,15 +324,6 @@ void TestGiveDiffPriority() {
 
     TestBinary(4, GiveTaskFunc);
 }
-
-// simulate a hardware interrupt
-void CallIRQN(IRQn_Type irqn, uint32_t Priority) {
-    uint32_t priority = NVIC_EncodePriority(0, Priority, 0);
-    NVIC_SetPriority(irqn, priority);
-    NVIC_EnableIRQ(irqn);
-    NVIC_SetPendingIRQ(irqn);
-}
-
 
 // *****************************************************************************
 // TestTakeFromISR
