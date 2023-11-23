@@ -204,35 +204,67 @@ void QueueSendFromISRHandler() {
     configASSERT(HigherPriorityTaskWoken == ExpectedSendFromISRWoken);
 }
 
-static void SendToBackFromISRTaskFunc(void* Parameters) {
+static void SendFromISRHighTaskFunc(void* Parameters) {
     (void) Parameters;
 
-    // Queue is size 3
-    // Calling SendToBackFromISR 3x should succeed
-    // Then afterwards, should fail
+    // queue is size 3
+    // calling SendToBackFromISR 3x should succeed
+    // then afterwards, should fail
     ExpectedSendFromISRReturn = pdTRUE;
     ExpectedSendFromISRWoken = pdFALSE;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; ++i) {
         SendItem = 490 + i;
         CallIRQN(SEND_IRQN, 1);
     }
 
-    ExpectedSendFromISRReturn = pdFALSE;
-    for (int i = 0; i < 5; i++) {
+    ExpectedSendFromISRReturn = errQUEUE_FULL;
+    for (int i = 0; i < 5; ++i) {
         CallIRQN(SEND_IRQN, 1);
     }
 
+    // check that elements were pushed on
+    int receive;
+    for (int i = 0; i < 3; ++i) {
+        printf("QueueReceive\n");
+        configASSERT(QUEUE_RECEIVE(&receive, 0) == pdTRUE);
+        configASSERT(receive == 490 + i);
+    }
+
+    // test HigherPriorityTaskWoken
+    // try to receive from an empty queue. this blocks and low priority task is
+    // scheduled in. the low priority task is then interrupted by SendFromISR
+    // which should then wake this task
+    configASSERT(QUEUE_RECEIVE(&receive, pdMS_TO_TICKS(100)) == pdTRUE);
+    configASSERT(receive == 12345);
+
+    vTaskDelete(NULL);
+}
+
+static void SendFromISRLowTaskFunc(void* Parameters) {
+    (void) Parameters;
+
+    SendItem = 12345;
+    ExpectedSendFromISRReturn = pdTRUE;
+    ExpectedSendFromISRWoken = pdTRUE;
+
+    CallIRQN(SEND_IRQN, 1);
     vTaskDelete(NULL);
 }
 
 void TestSendToBackFromISR() {
     InitializeQueue(3, sizeof(int));
 
-    xTaskCreate(SendToBackFromISRTaskFunc,
+    xTaskCreate(SendFromISRHighTaskFunc,
                 NULL,
                 STACK_SIZE,
-                (void*) 5,
+                NULL,
+                tskIDLE_PRIORITY + 2,
+                NULL);
+    xTaskCreate(SendFromISRLowTaskFunc,
+                NULL,
+                STACK_SIZE,
+                NULL,
                 tskIDLE_PRIORITY + 1,
                 NULL);
 
