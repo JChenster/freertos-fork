@@ -14,7 +14,7 @@ USE_DEFAULT_SEM="#define USE_MY_SEM (0)"
 set_up
 
 for test_name in BINARY_SAME_PRIORITY BINARY_DIFF_PRIORITY \
-                 COUNTING_SAME_PRIORITY COUNTING_DIFF_PRIORITY
+                 COUNTING_SAME_PRIORITY COUNTING_DIFF_PRIORITY GIVE_FROM_ISR
 do
     # set test
     running_test="#define RUNNING_TEST ($test_name)"
@@ -45,3 +45,8 @@ do
 done
 
 tear_down
+
+# manual tests (just for MySemaphore)
+# - GIVE_SAME_PRIORITY
+# - GIVE_DIFF_PRIORITY
+# - TAKE_FROM_ISR
