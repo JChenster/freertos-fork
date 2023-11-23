@@ -4,7 +4,6 @@
 #include "my_semaphore.h"
 
 #include <string.h>
-#include <stdio.h>
 
 struct MyQueueDefinition {
     // Synchronization
@@ -52,7 +51,18 @@ MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize) {
             NewQueue->FullSemaphore == NULL ||
             NewQueue->ModifySemaphore == NULL)
         {
-            // TODO: gracefully delete
+            if (NewQueue->EmptySemaphore != NULL) {
+                MySemaphoreDelete(NewQueue->FullSemaphore);
+            }
+
+            if (NewQueue->EmptySemaphore != NULL) {
+                MySemaphoreDelete(NewQueue->EmptySemaphore);
+            }
+
+            if (NewQueue->ModifySemaphore != NULL) {
+                MySemaphoreDelete(NewQueue->EmptySemaphore);
+            }
+
             return NULL;
         }
 
@@ -66,6 +76,18 @@ MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize) {
     }
 
     return NewQueue;
+}
+
+void MyQueueDelete(MyQueueHandle_t MyQueue) {
+    configASSERT(MyQueue);
+
+    configASSERT(MyQueue->EmptySemaphore);
+    configASSERT(MyQueue->FullSemaphore);
+    configASSERT(MyQueue->ModifySemaphore);
+
+    MySemaphoreDelete(MyQueue->EmptySemaphore);
+    MySemaphoreDelete(MyQueue->FullSemaphore);
+    MySemaphoreDelete(MyQueue->ModifySemaphore);
 }
 
 BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
@@ -159,7 +181,7 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
             BaseType_t EmptyWoken = pdFALSE;
             BaseType_t FullWoken = pdFALSE;
 
-            // take EmptySempahore to push an item and ensure it succeeds
+            // take EmptySemaphore to push an item and ensure it succeeds
             configASSERT(MySemaphoreTakeFromISR(MyQueue->EmptySemaphore,
                                                 &EmptyWoken) == pdTRUE);
 
@@ -171,7 +193,7 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
                 MyQueue->Tail = MyQueue->BufferBegin;
             }
 
-            // give FullSempahore to indicate an item has been pushed and
+            // give FullSemaphore to indicate an item has been pushed and
             // ensure it succeeds
             configASSERT(MySemaphoreGiveFromISR(MyQueue->FullSemaphore,
                                                 &FullWoken) == pdTRUE);
@@ -219,7 +241,7 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
             BaseType_t FullWoken = pdFALSE;
             BaseType_t EmptyWoken = pdFALSE;
 
-            // take FullSempahore to pop an item and ensure it succeeds
+            // take FullSemaphore to pop an item and ensure it succeeds
             configASSERT(MySemaphoreTakeFromISR(MyQueue->FullSemaphore,
                                                 &FullWoken) == pdTRUE);
 
@@ -231,7 +253,7 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
                 MyQueue->Head = MyQueue->BufferBegin;
             }
 
-            // give EmptySempahore to indicate an item has been popped and
+            // give EmptySemaphore to indicate an item has been popped and
             // ensure it succeeds
             configASSERT(MySemaphoreGiveFromISR(MyQueue->EmptySemaphore,
                                                 &EmptyWoken) == pdTRUE);

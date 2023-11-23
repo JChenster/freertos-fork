@@ -11,6 +11,8 @@ typedef MySemaphore_t* MySemaphoreHandle_t;
 MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
                                       const UBaseType_t InitialCount);
 
+void MySemaphoreDelete(MySemaphoreHandle_t MySemaphore);
+
 BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
                            TickType_t TicksToWait);
 

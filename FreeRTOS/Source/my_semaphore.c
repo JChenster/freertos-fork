@@ -32,10 +32,17 @@ MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
     return NewSemaphore;
 }
 
+void MySemaphoreDelete(MySemaphoreHandle_t MySemaphore) {
+    // check semaphore is non-null
+    configASSERT(MySemaphore);
+
+    vPortFree(MySemaphore);
+}
+
 BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
                            TickType_t TicksToWait)
 {
-    // Check semaphore is non-null
+    // check semaphore is non-null
     configASSERT(MySemaphore);
 
     // enter critical section so only one task can obtain semaphore at a time
