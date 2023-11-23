@@ -14,8 +14,10 @@
 #define FAST_SLOW (1)
 #define SLOW_FAST (2)
 #define SEND_BACK_ISR (3)
+#define RECEIVE_ISR (4)
 
 #define SEND_IRQN (UARTRX1_IRQn)
+#define RECEIVE_IRQN (UARTTX1_IRQn)
 
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
 
@@ -35,6 +37,10 @@
     #define QUEUE_RECEIVE(BUFFER, DELAY) MyQueueReceive(MyQueue, \
                                                         ((void*) (BUFFER)), \
                                                         (DELAY))
+    #define QUEUE_RECEIVE_ISR(BUFFER, WOKEN) \
+        MyQueueReceiveFromISR(MyQueue, \
+                              ((void*) (BUFFER)), \
+                              (BaseType_t*) (WOKEN))
 #else
     #define QUEUE_NAME "Default Queue"
     #define QUEUE_SEND_BACK(ITEM, DELAY) xQueueSendToBack(DefaultQueue, \
@@ -47,6 +53,10 @@
     #define QUEUE_RECEIVE(BUFFER, DELAY) xQueueReceive(DefaultQueue, \
                                                        ((void*) (BUFFER)), \
                                                        (DELAY))
+    #define QUEUE_RECEIVE_ISR(BUFFER, WOKEN) \
+        xQueueReceiveFromISR(DefaultQueue, \
+                             ((void*) (BUFFER)), \
+                             (BaseType_t*) (WOKEN))
 #endif
 
 // Global queue variables
@@ -71,6 +81,7 @@ void TestSimple();
 void TestFastSlow();
 void TestSlowFast();
 void TestSendToBackFromISR();
+void TestReceiveFromISR();
 
 void main_my_queue(void) {
     printf("Using %s\n", QUEUE_NAME);
@@ -87,6 +98,9 @@ void main_my_queue(void) {
     #elif RUNNING_TEST == SEND_BACK_ISR
         printf("Running SendToBackFromISR test\n");
         TestSendToBackFromISR();
+    #elif RUNNING_TEST == RECEIVE_ISR
+        printf("Running ReceiveFromISR test\n");
+        TestReceiveFromISR();
     #else
         printf("Invalid test selection\n");
     #endif
@@ -235,8 +249,10 @@ static void SendFromISRHighTaskFunc(void* Parameters) {
     // try to receive from an empty queue. this blocks and low priority task is
     // scheduled in. the low priority task is then interrupted by SendFromISR
     // which should then wake this task
+    printf("Waiting to RECEIVE\n");
     configASSERT(QUEUE_RECEIVE(&receive, pdMS_TO_TICKS(100)) == pdTRUE);
     configASSERT(receive == 12345);
+    printf("RECEIVE done\n");
 
     vTaskDelete(NULL);
 }
@@ -262,6 +278,99 @@ void TestSendToBackFromISR() {
                 tskIDLE_PRIORITY + 2,
                 NULL);
     xTaskCreate(SendFromISRLowTaskFunc,
+                NULL,
+                STACK_SIZE,
+                NULL,
+                tskIDLE_PRIORITY + 1,
+                NULL);
+
+    vTaskStartScheduler();
+}
+
+// *****************************************************************************
+// TestReceiveFromISR
+// *****************************************************************************
+BaseType_t ExpectedReceiveFromISRReturn, ExpectedReceiveFromISRWoken;
+int ExpectedReceiveFromISRItem;
+
+void QueueReceiveFromISRHandler() {
+    printf("ReceiveFromISR\n");
+    BaseType_t HigherPriorityTaskWoken = pdFALSE;
+
+    int receive;
+    BaseType_t ret = QUEUE_RECEIVE_ISR(&receive, &HigherPriorityTaskWoken);
+    configASSERT(ret == ExpectedReceiveFromISRReturn);
+    configASSERT(HigherPriorityTaskWoken == ExpectedReceiveFromISRWoken);
+
+    // if we received an item
+    if (ret == pdTRUE)
+        configASSERT(receive == ExpectedReceiveFromISRItem);
+}
+
+static void ReceiveFromISRHighTaskFunc(void* Parameters) {
+    (void) Parameters;
+
+    for (int i = 0; i < 3; ++i) {
+        printf("QueueSendBack\n");
+        int Send = 490 + i;
+        configASSERT(QUEUE_SEND_BACK(&Send, 0) == pdTRUE);
+    }
+
+    // queue is size 3
+    // calling ReceiveFromISR 3x should succeed
+    // then afterwards, should fail
+    ExpectedReceiveFromISRReturn = pdTRUE;
+    ExpectedReceiveFromISRWoken = pdFALSE;
+
+    for (int i = 0; i < 3; ++i) {
+        ExpectedReceiveFromISRItem = 490 + i;
+        CallIRQN(RECEIVE_IRQN, 1);
+    }
+
+    ExpectedReceiveFromISRReturn = errQUEUE_EMPTY;
+    for (int i = 0; i < 5; ++i) {
+        CallIRQN(RECEIVE_IRQN, 1);
+    }
+
+    // test HigherPriorityTaskWoken
+    // try to send to a full queue. this blocks and low priority task is
+    // scheduled in. the low priority task is then interrupted by ReceiveFromISR
+    // which should then wake this task
+    for (int i = 0; i < 3; ++i) {
+        printf("QueueSendBack\n");
+        int Send = 12345 + i;
+        configASSERT(QUEUE_SEND_BACK(&Send, 0) == pdTRUE);
+    }
+
+    printf("Waiting to SEND\n");
+    int Send = 12345 + 3;
+    configASSERT(QUEUE_SEND_BACK(&Send, pdMS_TO_TICKS(100)) == pdTRUE);
+    printf("SEND done\n");
+
+    vTaskDelete(NULL);
+}
+
+static void ReceiveFromISRLowTaskFunc(void* Parameters) {
+    (void) Parameters;
+
+    ExpectedReceiveFromISRReturn = pdTRUE;
+    ExpectedReceiveFromISRWoken = pdTRUE;
+    ExpectedReceiveFromISRItem = 12345;
+
+    CallIRQN(RECEIVE_IRQN, 1);
+    vTaskDelete(NULL);
+}
+
+void TestReceiveFromISR() {
+    InitializeQueue(3, sizeof(int));
+
+    xTaskCreate(ReceiveFromISRHighTaskFunc,
+                NULL,
+                STACK_SIZE,
+                NULL,
+                tskIDLE_PRIORITY + 2,
+                NULL);
+    xTaskCreate(ReceiveFromISRLowTaskFunc,
                 NULL,
                 STACK_SIZE,
                 NULL,

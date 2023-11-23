@@ -22,4 +22,8 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
                                     const void* ItemToQueue,
                                     BaseType_t* HigherPriorityTaskWoken);
 
+BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
+                                 void* Buffer,
+                                 BaseType_t* HigherPriorityTaskWoken);
+
 #endif // MYQUEUE_H

@@ -59,6 +59,7 @@ void Reset_Handler( void );
 extern void SemGiveFromISRHandler( void );
 extern void SemTakeFromISRHandler( void );
 extern void QueueSendFromISRHandler( void );
+extern void QueueReceiveFromISRHandler( void );
 
 extern int main( void );
 extern uint32_t _estack;
@@ -85,7 +86,7 @@ const uint32_t* isr_vector[] __attribute__((section(".isr_vector"))) =
     ( uint32_t * ) &SemGiveFromISRHandler, // 0
     ( uint32_t * ) &SemTakeFromISRHandler, // 1
     ( uint32_t * ) &QueueSendFromISRHandler, // 2
-    0,
+    ( uint32_t * ) &QueueReceiveFromISRHandler, // 3
     0,
     0,
     0,
