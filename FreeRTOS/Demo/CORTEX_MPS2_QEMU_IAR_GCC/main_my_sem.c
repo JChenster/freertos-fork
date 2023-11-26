@@ -65,7 +65,7 @@ TaskHandle_t task_handle;
 // Macros to take and give semaphore
 #if (USE_MY_SEM == 1)
     #define SEM_NAME "My Semaphore"
-    #define SEM_TAKE() MySemaphoreTake(MySemaphore, SEM_WAIT_TICKS)
+    #define SEM_TAKE() xMySemaphoreTake(MySemaphore, SEM_WAIT_TICKS)
     #define SEM_GIVE() MySemaphoreGive(MySemaphore, portMAX_DELAY)
     #define SEM_TAKE_ISR(WOKEN) \
         MySemaphoreTakeFromISR(MySemaphore, (BaseType_t*) (WOKEN))
@@ -206,7 +206,7 @@ static void GiveTaskFunc(void* pvParamaters) {
 void TestBinary(int num_tasks, void task_func (void*)) {
     // create binary semaphore
     #if (USE_MY_SEM == 1)
-        MySemaphore = MySemaphoreCreate(1, 1);
+        MySemaphore = pxMySemaphoreCreate(1, 1);
         configASSERT(MySemaphore);
     #else
         xSemaphore = xSemaphoreCreateBinary();
@@ -255,7 +255,7 @@ void TestCounting(int num_tasks) {
 
     // create counting semaphore
     #if (USE_MY_SEM == 1)
-        MySemaphore = MySemaphoreCreate(max_count, init_count);
+        MySemaphore = pxMySemaphoreCreate(max_count, init_count);
         configASSERT(MySemaphore);
     #else
         xSemaphore = xSemaphoreCreateCounting(max_count, init_count);
@@ -406,7 +406,7 @@ void TestTakeFromISR() {
     UBaseType_t init_count = 1;
 
     #if (USE_MY_SEM == 1)
-        MySemaphore = MySemaphoreCreate(max_count, init_count);
+        MySemaphore = pxMySemaphoreCreate(max_count, init_count);
         configASSERT(MySemaphore);
     #else
         xSemaphore = xSemaphoreCreateCounting(max_count, init_count);
@@ -505,7 +505,7 @@ void TestGiveFromISR() {
     UBaseType_t init_count = 1;
 
     #if (USE_MY_SEM == 1)
-        MySemaphore = MySemaphoreCreate(max_count, init_count);
+        MySemaphore = pxMySemaphoreCreate(max_count, init_count);
         configASSERT(MySemaphore);
     #else
         xSemaphore = xSemaphoreCreateCounting(max_count, init_count);

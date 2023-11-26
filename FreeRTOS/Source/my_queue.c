@@ -43,24 +43,24 @@ MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize) {
             return NULL;
         }
 
-        NewQueue->EmptySemaphore = MySemaphoreCreate(QueueLength, QueueLength);
-        NewQueue->FullSemaphore = MySemaphoreCreate(QueueLength, 0);
-        NewQueue->ModifySemaphore = MySemaphoreCreate(1, 1);
+        NewQueue->EmptySemaphore = pxMySemaphoreCreate(QueueLength, QueueLength);
+        NewQueue->FullSemaphore = pxMySemaphoreCreate(QueueLength, 0);
+        NewQueue->ModifySemaphore = pxMySemaphoreCreate(1, 1);
 
         if (NewQueue->EmptySemaphore == NULL ||
             NewQueue->FullSemaphore == NULL ||
             NewQueue->ModifySemaphore == NULL)
         {
             if (NewQueue->EmptySemaphore != NULL) {
-                MySemaphoreDelete(NewQueue->FullSemaphore);
+                vMySemaphoreDelete(NewQueue->FullSemaphore);
             }
 
             if (NewQueue->EmptySemaphore != NULL) {
-                MySemaphoreDelete(NewQueue->EmptySemaphore);
+                vMySemaphoreDelete(NewQueue->EmptySemaphore);
             }
 
             if (NewQueue->ModifySemaphore != NULL) {
-                MySemaphoreDelete(NewQueue->EmptySemaphore);
+                vMySemaphoreDelete(NewQueue->EmptySemaphore);
             }
 
             return NULL;
@@ -85,9 +85,9 @@ void MyQueueDelete(MyQueueHandle_t MyQueue) {
     configASSERT(MyQueue->FullSemaphore);
     configASSERT(MyQueue->ModifySemaphore);
 
-    MySemaphoreDelete(MyQueue->EmptySemaphore);
-    MySemaphoreDelete(MyQueue->FullSemaphore);
-    MySemaphoreDelete(MyQueue->ModifySemaphore);
+    vMySemaphoreDelete(MyQueue->EmptySemaphore);
+    vMySemaphoreDelete(MyQueue->FullSemaphore);
+    vMySemaphoreDelete(MyQueue->ModifySemaphore);
 }
 
 BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
@@ -95,9 +95,9 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
                              TickType_t TicksToWait)
 {
     // take EmptySemaphore to get an empty slot to push an item
-    if (MySemaphoreTake(MyQueue->EmptySemaphore, TicksToWait / 2) == pdTRUE) {
+    if (xMySemaphoreTake(MyQueue->EmptySemaphore, TicksToWait / 2) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to write
-        if (MySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
+        if (xMySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
             // write to Tail and then increment Tail
             memcpy((void*) MyQueue->Tail, ItemToQueue, MyQueue->ItemSize);
 
@@ -128,9 +128,9 @@ BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
                           TickType_t TicksToWait)
 {
     // take FullSemaphore to get a full slot to pop an item
-    if (MySemaphoreTake(MyQueue->FullSemaphore, TicksToWait / 2) == pdTRUE) {
+    if (xMySemaphoreTake(MyQueue->FullSemaphore, TicksToWait / 2) == pdTRUE) {
         // get mutual exclusive access to ModifySemaphore to read
-        if (MySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
+        if (xMySemaphoreTake(MyQueue->ModifySemaphore, TicksToWait / 2) == pdTRUE) {
             // read from Head and then increment Head
             memcpy(Buffer, (void*) MyQueue->Head, MyQueue->ItemSize);
 

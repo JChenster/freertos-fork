@@ -22,9 +22,9 @@
 #define STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
 
 // Set this to 1 to use MyQueue, else use default
-#define USE_MY_QUEUE (1)
+#define USE_MY_QUEUE (0)
 // Set this to what test you want to run
-#define RUNNING_TEST (SLOW_FAST)
+#define RUNNING_TEST (0)
 
 // Macros to abstract away queue functions
 #if USE_MY_QUEUE == 1

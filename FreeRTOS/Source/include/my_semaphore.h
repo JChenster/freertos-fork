@@ -8,13 +8,13 @@
 typedef struct MySemaphoreDefinition MySemaphore_t;
 typedef MySemaphore_t* MySemaphoreHandle_t;
 
-MySemaphoreHandle_t MySemaphoreCreate(const UBaseType_t MaxCount,
-                                      const UBaseType_t InitialCount);
+MySemaphoreHandle_t pxMySemaphoreCreate( const UBaseType_t uxMaxCount,
+                                         const UBaseType_t uxInitialCount );
 
-void MySemaphoreDelete(MySemaphoreHandle_t MySemaphore);
+void vMySemaphoreDelete( MySemaphoreHandle_t pxMySemaphore );
 
-BaseType_t MySemaphoreTake(MySemaphoreHandle_t MySemaphore,
-                           TickType_t TicksToWait);
+BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
+                             TickType_t xTicksToWait );
 
 BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle,
                            TickType_t TicksToWait);
