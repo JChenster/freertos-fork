@@ -16,17 +16,17 @@ void vMySemaphoreDelete( MySemaphoreHandle_t pxMySemaphore );
 BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
                              TickType_t xTicksToWait );
 
-BaseType_t MySemaphoreGive(MySemaphoreHandle_t MySemaphoreHandle,
-                           TickType_t TicksToWait);
+BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
+                             TickType_t xTicksToWait );
 
-BaseType_t MySemaphoreTakeFromISR(MySemaphoreHandle_t MySemaphore,
-                                  BaseType_t* HigherPriorityTaskWoken);
+BaseType_t xMySemaphoreTakeFromISR( MySemaphoreHandle_t pxMySemaphore,
+                                    BaseType_t* pxHigherPriorityTaskWoken );
 
-BaseType_t MySemaphoreGiveFromISR(MySemaphoreHandle_t MySemaphore,
-                                  BaseType_t* HigherPriorityTaskWoken);
+BaseType_t xMySemaphoreGiveFromISR( MySemaphoreHandle_t pxMySemaphore,
+                                    BaseType_t* pxHigherPriorityTaskWoken );
 
-BaseType_t MySemaphoreTakeAvailableFromISR(MySemaphoreHandle_t MySemaphore);
+BaseType_t xMySemaphoreTakeAvailableFromISR( MySemaphoreHandle_t pxMySemaphore );
 
-BaseType_t MySemaphoreGiveAvailableFromISR(MySemaphoreHandle_t MySemaphore);
+BaseType_t xMySemaphoreGiveAvailableFromISR( MySemaphoreHandle_t pxMySemaphore );
 
 #endif // MYSEMAPHORE_H

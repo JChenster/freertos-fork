@@ -107,16 +107,16 @@ BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
             }
 
             // done writing
-            MySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
 
             // one more slot of the queue is now full
-            MySemaphoreGive(MyQueue->FullSemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->FullSemaphore, portMAX_DELAY);
 
             return pdTRUE;
         } else {
             // we were unsuccessful getting ModifySemaphore so give back the
             // empty slot we took
-            MySemaphoreGive(MyQueue->EmptySemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->EmptySemaphore, portMAX_DELAY);
         }
     }
 
@@ -140,16 +140,16 @@ BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
             }
 
             // done reading
-            MySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->ModifySemaphore, portMAX_DELAY);
 
             // one more slot of the queue is now empty
-            MySemaphoreGive(MyQueue->EmptySemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->EmptySemaphore, portMAX_DELAY);
 
             return pdTRUE;
         } else {
             // we were unsuccessful getting ModifySemaphore so give back the
             // full slot we took
-            MySemaphoreGive(MyQueue->FullSemaphore, portMAX_DELAY);
+            xMySemaphoreGive(MyQueue->FullSemaphore, portMAX_DELAY);
         }
     }
 
@@ -167,7 +167,7 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
     // ModifySemaphore is always the taker so we should never have any
     // processes waiting to give so HigherPriorityTaskWoken parameter is
     // irrelevant here
-    if (MySemaphoreTakeFromISR(MyQueue->ModifySemaphore, NULL) == pdTRUE) {
+    if (xMySemaphoreTakeFromISR(MyQueue->ModifySemaphore, NULL) == pdTRUE) {
         // We can assume that what happens in this block occurs atomically
         // since only other interrupts with a higher priority can interrupt
         // this function but they would not be able to acquire the ModifySmepahore
@@ -175,14 +175,14 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
         // take and give functions may notify other tasks so we should not call
         // take and give unless we are confident they will succeed which we can
         // quickly check since we are not waiting
-        if (MySemaphoreTakeAvailableFromISR(MyQueue->EmptySemaphore) == pdTRUE &&
-            MySemaphoreGiveAvailableFromISR(MyQueue->FullSemaphore) == pdTRUE)
+        if (xMySemaphoreTakeAvailableFromISR(MyQueue->EmptySemaphore) == pdTRUE &&
+            xMySemaphoreGiveAvailableFromISR(MyQueue->FullSemaphore) == pdTRUE)
         {
             BaseType_t EmptyWoken = pdFALSE;
             BaseType_t FullWoken = pdFALSE;
 
             // take EmptySemaphore to push an item and ensure it succeeds
-            configASSERT(MySemaphoreTakeFromISR(MyQueue->EmptySemaphore,
+            configASSERT(xMySemaphoreTakeFromISR(MyQueue->EmptySemaphore,
                                                 &EmptyWoken) == pdTRUE);
 
             // write to Tail and then increment Tail
@@ -195,7 +195,7 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
 
             // give FullSemaphore to indicate an item has been pushed and
             // ensure it succeeds
-            configASSERT(MySemaphoreGiveFromISR(MyQueue->FullSemaphore,
+            configASSERT(xMySemaphoreGiveFromISR(MyQueue->FullSemaphore,
                                                 &FullWoken) == pdTRUE);
 
             // Set HigherPriorityTaskWoken indicator here if not NULL
@@ -210,7 +210,7 @@ BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
 
         // done modifying, this should always succeed since we guarantee hold
         // the ModifySemaphore
-        MySemaphoreGiveFromISR(MyQueue->ModifySemaphore, NULL);
+        xMySemaphoreGiveFromISR(MyQueue->ModifySemaphore, NULL);
     }
 
     return Status;
@@ -227,7 +227,7 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
     // ModifySemaphore is always the taker so we should never have any
     // processes waiting to give so HigherPriorityTaskWoken parameter is
     // irrelevant here
-    if (MySemaphoreTakeFromISR(MyQueue->ModifySemaphore, NULL) == pdTRUE) {
+    if (xMySemaphoreTakeFromISR(MyQueue->ModifySemaphore, NULL) == pdTRUE) {
         // We can assume that what happens in this block occurs atomically
         // since only other interrupts with a higher priority can interrupt
         // this function but they would not be able to acquire the ModifySmepahore
@@ -235,14 +235,14 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
         // take and give functions may notify other tasks so we should not call
         // take and give unless we are confident they will succeed which we can
         // quickly check since we are not waiting
-        if (MySemaphoreTakeAvailableFromISR(MyQueue->FullSemaphore) == pdTRUE &&
-            MySemaphoreGiveAvailableFromISR(MyQueue->EmptySemaphore) == pdTRUE)
+        if (xMySemaphoreTakeAvailableFromISR(MyQueue->FullSemaphore) == pdTRUE &&
+            xMySemaphoreGiveAvailableFromISR(MyQueue->EmptySemaphore) == pdTRUE)
         {
             BaseType_t FullWoken = pdFALSE;
             BaseType_t EmptyWoken = pdFALSE;
 
             // take FullSemaphore to pop an item and ensure it succeeds
-            configASSERT(MySemaphoreTakeFromISR(MyQueue->FullSemaphore,
+            configASSERT(xMySemaphoreTakeFromISR(MyQueue->FullSemaphore,
                                                 &FullWoken) == pdTRUE);
 
             // read from Head and then increment Head
@@ -255,7 +255,7 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
 
             // give EmptySemaphore to indicate an item has been popped and
             // ensure it succeeds
-            configASSERT(MySemaphoreGiveFromISR(MyQueue->EmptySemaphore,
+            configASSERT(xMySemaphoreGiveFromISR(MyQueue->EmptySemaphore,
                                                 &EmptyWoken) == pdTRUE);
 
             // Set HigherPriorityTaskWoken indicator here if not NULL
@@ -270,7 +270,7 @@ BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
 
         // done modifying, this should always succeed since we guarantee hold
         // the ModifySemaphore
-        MySemaphoreGiveFromISR(MyQueue->ModifySemaphore, NULL);
+        xMySemaphoreGiveFromISR(MyQueue->ModifySemaphore, NULL);
     }
 
     return Status;
