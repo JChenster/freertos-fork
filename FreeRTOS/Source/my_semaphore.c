@@ -4,7 +4,8 @@
 #include "my_semaphore.h"
 #include "task.h"
 
-struct MySemaphoreDefinition {
+struct MySemaphoreDefinition
+{
     UBaseType_t uxCount;
     UBaseType_t uxMaxCount;
 
@@ -63,7 +64,7 @@ BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
         {
             /* Notify the next giver that resource is no longer full. Next
              * giver gives semaphore, incrementing count of the semaphore */
-            vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+            vTaskPopFromSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
             ( pxMySemaphore->uxCount )++;
         }
 
@@ -82,7 +83,14 @@ BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
 
     /* Task is now unblocked. If semaphore was taken, ulNotifiedValue will be
      * non-zero and give function will have already decremented semaphore count */
-    return ( ulNotifiedValue > 0 ) ? pdTRUE : pdFALSE;
+    if( ulNotifiedValue > 0)
+    {
+        return pdTRUE;
+    }
+
+    /* If semaphore was not taken, remove task from waiting takers */
+    vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+    return pdFALSE;
 }
 /*-----------------------------------------------------------*/
 
@@ -106,7 +114,7 @@ BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
         {
             /* Notify the next taker that semaphore is ready. Next taker takes
              * semaphore, decrementing count of the semaphore */
-            vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+            vTaskPopFromSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
             ( pxMySemaphore->uxCount )--;
         }
 
@@ -125,7 +133,14 @@ BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
 
     /* Task is now unblocked. If semaphore was given, ulNotifiedValue will be
      * non-zero and take function will have already incremented semaphore count */
-    return ( ulNotifiedValue > 0 ) ? pdTRUE : pdFALSE;
+    if( ulNotifiedValue > 0)
+    {
+        return pdTRUE;
+    }
+
+    /* If semaphore was not given, remove task from waiting givers */
+    vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+    return pdFALSE;
 }
 /*-----------------------------------------------------------*/
 
@@ -148,7 +163,7 @@ BaseType_t xMySemaphoreTakeFromISR( MySemaphoreHandle_t pxMySemaphore,
         if( listLIST_IS_EMPTY( &( pxMySemaphore->xWaitingGivers ) ) == pdFALSE )
         {
             BaseType_t xWoken =
-                vTaskRemoveFromSemListFromISR( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+                vTaskPopFromSemListFromISR( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
             ( pxMySemaphore->uxCount )++;
 
             /* Set pxHigherPriorityTaskWoken if not NULL */
@@ -185,7 +200,7 @@ BaseType_t xMySemaphoreGiveFromISR( MySemaphoreHandle_t pxMySemaphore,
         if ( listLIST_IS_EMPTY( &( pxMySemaphore->xWaitingTakers ) ) == pdFALSE )
         {
             BaseType_t xWoken =
-                vTaskRemoveFromSemListFromISR( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+                vTaskPopFromSemListFromISR( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
 
             // Set HigherPriorityTaskWoken indicator here if not NULL
             if ( pxHigherPriorityTaskWoken != NULL )
@@ -204,7 +219,8 @@ BaseType_t xMySemaphoreGiveFromISR( MySemaphoreHandle_t pxMySemaphore,
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t xMySemaphoreTakeAvailableFromISR( MySemaphoreHandle_t pxMySemaphore ) {
+BaseType_t xMySemaphoreTakeAvailableFromISR( MySemaphoreHandle_t pxMySemaphore )
+{
     configASSERT( pxMySemaphore );
 
     UBaseType_t xSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();
@@ -214,7 +230,8 @@ BaseType_t xMySemaphoreTakeAvailableFromISR( MySemaphoreHandle_t pxMySemaphore )
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t xMySemaphoreGiveAvailableFromISR( MySemaphoreHandle_t pxMySemaphore ) {
+BaseType_t xMySemaphoreGiveAvailableFromISR( MySemaphoreHandle_t pxMySemaphore )
+{
     configASSERT( pxMySemaphore );
 
     UBaseType_t xSavedInterruptStatus = taskENTER_CRITICAL_FROM_ISR();

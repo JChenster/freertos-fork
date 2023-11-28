@@ -4945,6 +4945,24 @@ void vTaskRemoveFromSemList( const List_t * const pxSemList,
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
 
+    /* Remove current task from semaphore list */
+    if( xIsTakeList == pdTRUE )
+    {
+        listREMOVE_ITEM( &(pxCurrentTCB->xTakeListItem) );
+    }
+    else
+    {
+        listREMOVE_ITEM( &(pxCurrentTCB->xGiveListItem) );
+    }
+}
+/*-----------------------------------------------------------*/
+
+void vTaskPopFromSemList( const List_t * const pxSemList,
+                          const BaseType_t xIsTakeList )
+{
+    configASSERT( pxSemList );
+    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+
     /* Get task whose item we should remove from semaphore list and notify */
     TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
     configASSERT( pxHeadOwner );
@@ -4964,8 +4982,8 @@ void vTaskRemoveFromSemList( const List_t * const pxSemList,
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t vTaskRemoveFromSemListFromISR ( const List_t * const pxSemList,
-                                           const BaseType_t xIsTakeList )
+BaseType_t vTaskPopFromSemListFromISR ( const List_t * const pxSemList,
+                                        const BaseType_t xIsTakeList )
 {
     configASSERT( pxSemList );
     configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
