@@ -29,18 +29,18 @@
 // Macros to abstract away queue functions
 #if USE_MY_QUEUE == 1
     #define QUEUE_NAME "My Queue"
-    #define QUEUE_SEND_BACK(ITEM, DELAY) MyQueueSendToBack(MyQueue, \
-                                                           ((void*) (ITEM)), \
-                                                           (DELAY))
+    #define QUEUE_SEND_BACK(ITEM, DELAY) xMyQueueSendToBack(MyQueue, \
+                                                            ((void*) (ITEM)), \
+                                                            (DELAY))
     #define QUEUE_SEND_BACK_ISR(ITEM, WOKEN) \
-        MyQueueSendToBackFromISR(MyQueue, (void*) (ITEM), (BaseType_t*) (WOKEN))
-    #define QUEUE_RECEIVE(BUFFER, DELAY) MyQueueReceive(MyQueue, \
-                                                        ((void*) (BUFFER)), \
-                                                        (DELAY))
+        xMyQueueSendToBackFromISR(MyQueue, (void*) (ITEM), (BaseType_t*) (WOKEN))
+    #define QUEUE_RECEIVE(BUFFER, DELAY) xMyQueueReceive(MyQueue, \
+                                                         ((void*) (BUFFER)), \
+                                                         (DELAY))
     #define QUEUE_RECEIVE_ISR(BUFFER, WOKEN) \
-        MyQueueReceiveFromISR(MyQueue, \
-                              ((void*) (BUFFER)), \
-                              (BaseType_t*) (WOKEN))
+        xMyQueueReceiveFromISR(MyQueue, \
+                               ((void*) (BUFFER)), \
+                               (BaseType_t*) (WOKEN))
 #else
     #define QUEUE_NAME "Default Queue"
     #define QUEUE_SEND_BACK(ITEM, DELAY) xQueueSendToBack(DefaultQueue, \
@@ -66,7 +66,7 @@ QueueHandle_t DefaultQueue;
 // Util functions
 void InitializeQueue(UBaseType_t QueueLength, UBaseType_t ItemSize) {
     #if USE_MY_QUEUE == 1
-        MyQueue = MyQueueCreate(QueueLength, ItemSize);
+        MyQueue = pxMyQueueCreate(QueueLength, ItemSize);
         configASSERT(MyQueue);
     #else
         DefaultQueue = xQueueCreate(QueueLength, ItemSize);

@@ -10,24 +10,24 @@
 typedef struct MyQueueDefinition MyQueue_t;
 typedef MyQueue_t* MyQueueHandle_t;
 
-MyQueueHandle_t MyQueueCreate(UBaseType_t QueueLength, UBaseType_t ItemSize);
+MyQueueHandle_t pxMyQueueCreate( UBaseType_t xQueueLength, UBaseType_t xItemSize );
 
-void MyQueueDelete(MyQueueHandle_t MyQueue);
+void vMyQueueDelete( MyQueueHandle_t pxMyQueue );
 
-BaseType_t MyQueueSendToBack(MyQueueHandle_t MyQueue,
-                             const void* ItemToQueue,
-                             TickType_t TicksToWait);
+BaseType_t xMyQueueSendToBack( MyQueueHandle_t pxMyQueue,
+                               const void* pvItemToQueue,
+                               TickType_t xTicksToWait );
 
-BaseType_t MyQueueReceive(MyQueueHandle_t MyQueue,
-                          void* Buffer,
-                          TickType_t TicksToWait);
+BaseType_t xMyQueueReceive( MyQueueHandle_t pxMyQueue,
+                            void* pvBuffer,
+                            TickType_t xTicksToWait );
 
-BaseType_t MyQueueSendToBackFromISR(MyQueueHandle_t MyQueue,
-                                    const void* ItemToQueue,
-                                    BaseType_t* HigherPriorityTaskWoken);
+BaseType_t xMyQueueSendToBackFromISR( MyQueueHandle_t pxMyQueue,
+                                      const void* pvItemToQueue,
+                                      BaseType_t* pxHigherPriorityTaskWoken );
 
-BaseType_t MyQueueReceiveFromISR(MyQueueHandle_t MyQueue,
-                                 void* Buffer,
-                                 BaseType_t* HigherPriorityTaskWoken);
+BaseType_t xMyQueueReceiveFromISR( MyQueueHandle_t pxMyQueue,
+                                   void* pvBuffer,
+                                   BaseType_t* pxHigherPriorityTaskWoken );
 
 #endif // MYQUEUE_H
