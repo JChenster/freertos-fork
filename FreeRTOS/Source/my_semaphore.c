@@ -64,7 +64,7 @@ BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
         {
             /* Notify the next giver that resource is no longer full. Next
              * giver gives semaphore, incrementing count of the semaphore */
-            vTaskPopFromSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+            vTaskPopFromSemaphoreList( &( pxMySemaphore->xWaitingGivers ) );
             ( pxMySemaphore->uxCount )++;
         }
 
@@ -73,7 +73,7 @@ BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
     }
 
     /* Semaphore resource is not available so add to list of waiting takers */
-    vTaskPlaceOnSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+    vTaskPlaceOnSemaphoreList( &( pxMySemaphore->xWaitingTakers ) );
 
     /* Exit critical section to allow task to be notified */
     taskEXIT_CRITICAL();
@@ -89,7 +89,7 @@ BaseType_t xMySemaphoreTake( MySemaphoreHandle_t pxMySemaphore,
     }
 
     /* If semaphore was not taken, remove task from waiting takers */
-    vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+    vTaskRemoveFromSemaphoreList( &( pxMySemaphore->xWaitingTakers ) );
     return pdFALSE;
 }
 /*-----------------------------------------------------------*/
@@ -114,7 +114,7 @@ BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
         {
             /* Notify the next taker that semaphore is ready. Next taker takes
              * semaphore, decrementing count of the semaphore */
-            vTaskPopFromSemList( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+            vTaskPopFromSemaphoreList( &( pxMySemaphore->xWaitingTakers ) );
             ( pxMySemaphore->uxCount )--;
         }
 
@@ -123,7 +123,7 @@ BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
     }
 
     /* Semaphore resource full so add to list of waiting givers */
-    vTaskPlaceOnSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+    vTaskPlaceOnSemaphoreList( &( pxMySemaphore->xWaitingGivers ) );
 
     /* Exit critical section to allow task to be notified */
     taskEXIT_CRITICAL();
@@ -139,7 +139,7 @@ BaseType_t xMySemaphoreGive( MySemaphoreHandle_t pxMySemaphore,
     }
 
     /* If semaphore was not given, remove task from waiting givers */
-    vTaskRemoveFromSemList( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+    vTaskRemoveFromSemaphoreList( &( pxMySemaphore->xWaitingGivers ) );
     return pdFALSE;
 }
 /*-----------------------------------------------------------*/
@@ -163,7 +163,7 @@ BaseType_t xMySemaphoreTakeFromISR( MySemaphoreHandle_t pxMySemaphore,
         if( listLIST_IS_EMPTY( &( pxMySemaphore->xWaitingGivers ) ) == pdFALSE )
         {
             BaseType_t xWoken =
-                vTaskPopFromSemListFromISR( &( pxMySemaphore->xWaitingGivers ), pdFALSE );
+                xTaskPopFromSemaphoreListFromISR( &( pxMySemaphore->xWaitingGivers ) );
             ( pxMySemaphore->uxCount )++;
 
             /* Set pxHigherPriorityTaskWoken if not NULL */
@@ -200,7 +200,7 @@ BaseType_t xMySemaphoreGiveFromISR( MySemaphoreHandle_t pxMySemaphore,
         if ( listLIST_IS_EMPTY( &( pxMySemaphore->xWaitingTakers ) ) == pdFALSE )
         {
             BaseType_t xWoken =
-                vTaskPopFromSemListFromISR( &( pxMySemaphore->xWaitingTakers ), pdTRUE );
+                xTaskPopFromSemaphoreListFromISR( &( pxMySemaphore->xWaitingTakers ) );
 
             // Set HigherPriorityTaskWoken indicator here if not NULL
             if ( pxHigherPriorityTaskWoken != NULL )

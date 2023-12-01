@@ -311,8 +311,7 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
 
     ListItem_t xStateListItem;                  /**< The list that the state list item of a task is reference from denotes the state of that task (Ready, Blocked, Suspended ). */
     ListItem_t xEventListItem;                  /**< Used to reference a task from an event list. */
-    ListItem_t xGiveListItem;
-    ListItem_t xTakeListItem;
+    ListItem_t xSemaphoreWaitItem;              /**< Used to reference a task from a seamphore waiting list. */
     UBaseType_t uxPriority;                     /**< The priority of the task.  0 is the lowest priority. */
     StackType_t * pxStack;                      /**< Points to the start of the stack. */
     #if ( configNUMBER_OF_CORES > 1 )
@@ -1596,8 +1595,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
 
     vListInitialiseItem( &( pxNewTCB->xStateListItem ) );
     vListInitialiseItem( &( pxNewTCB->xEventListItem ) );
-    vListInitialiseItem( &( pxNewTCB->xGiveListItem ) );
-    vListInitialiseItem( &( pxNewTCB->xTakeListItem ) );
+    vListInitialiseItem( &( pxNewTCB->xSemaphoreWaitItem ) );
 
     /* Set the pxNewTCB as a link back from the ListItem_t.  This is so we can get
      * back to  the containing TCB from a generic item in a list. */
@@ -1607,17 +1605,12 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     listSET_LIST_ITEM_VALUE( &( pxNewTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
 
-    /* Initialize give/take list item
-     * Order give/take list from highest to lowest priority */
+    /* Initialize semaphore waiting list item
+     * We want to order waiting list from highest to lowest priority */
     listSET_LIST_ITEM_VALUE(
-        &( pxNewTCB->xTakeListItem ),
+        &( pxNewTCB->xSemaphoreWaitItem ),
         ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
-    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xTakeListItem ), pxNewTCB );
-
-    listSET_LIST_ITEM_VALUE(
-        &( pxNewTCB->xGiveListItem ),
-        ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
-    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xGiveListItem ), pxNewTCB );
+    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xSemaphoreWaitItem ), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
     {
@@ -4794,23 +4787,14 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
 }
 /*-----------------------------------------------------------*/
 
-void vTaskPlaceOnSemList ( List_t * const pxSemList,
-                           const BaseType_t xIsTakeList )
+void vTaskPlaceOnSemaphoreList( List_t * const pxSemaphoreList )
 {
-    configASSERT( pxSemList );
-    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+    configASSERT( pxSemaphoreList );
 
-    /* Only place on semlist if not already on */
-    if( xIsTakeList == pdTRUE &&
-        pxCurrentTCB->xTakeListItem.pxContainer != pxSemList )
-    {
-        vListInsert( pxSemList, &( pxCurrentTCB->xTakeListItem ) );
-    }
-    else if( xIsTakeList == pdFALSE &&
-             pxCurrentTCB->xGiveListItem.pxContainer != pxSemList )
-    {
-        vListInsert( pxSemList, &( pxCurrentTCB->xGiveListItem ) );
-    }
+    /* Semaphore waiting item should not be on another list */
+    configASSERT( pxCurrentTCB->xSemaphoreWaitItem.pxContainer == NULL );
+
+    vListInsert( pxSemaphoreList, &( pxCurrentTCB->xSemaphoreWaitItem ) );
 }
 /*-----------------------------------------------------------*/
 
@@ -4939,68 +4923,43 @@ BaseType_t xTaskRemoveFromEventList ( const List_t * const pxEventList )
 }
 /*-----------------------------------------------------------*/
 
-void vTaskRemoveFromSemList( const List_t * const pxSemList,
-                             const BaseType_t xIsTakeList )
+void vTaskRemoveFromSemaphoreList( const List_t * const pxSemaphoreList )
 {
-    configASSERT( pxSemList );
-    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+    configASSERT( pxSemaphoreList );
 
-    /* Remove current task from semaphore list */
-    if( xIsTakeList == pdTRUE )
-    {
-        listREMOVE_ITEM( &(pxCurrentTCB->xTakeListItem) );
-    }
-    else
-    {
-        listREMOVE_ITEM( &(pxCurrentTCB->xGiveListItem) );
-    }
+    /* Check that this task's semaphore waiting item is indeed in this list */
+    configASSERT( pxCurrentTCB->xSemaphoreWaitItem.pxContainer == pxSemaphoreList );
+
+    listREMOVE_ITEM( &( pxCurrentTCB->xSemaphoreWaitItem ) );
 }
 /*-----------------------------------------------------------*/
 
-void vTaskPopFromSemList( const List_t * const pxSemList,
-                          const BaseType_t xIsTakeList )
+void vTaskPopFromSemaphoreList( const List_t * const pxSemaphoreList )
 {
-    configASSERT( pxSemList );
-    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+    configASSERT( pxSemaphoreList );
 
     /* Get task whose item we should remove from semaphore list and notify */
-    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemaphoreList );
     configASSERT( pxHeadOwner );
 
-    /* Remove task take (give) item */
-    if( xIsTakeList == pdTRUE )
-    {
-        listREMOVE_ITEM( &(pxHeadOwner->xTakeListItem) );
-    }
-    else
-    {
-        listREMOVE_ITEM( &(pxHeadOwner->xGiveListItem) );
-    }
+    /* Remove the item */
+    listREMOVE_ITEM( &( pxHeadOwner->xSemaphoreWaitItem ) );
 
     /* Notify task that it ready */
     xTaskNotifyGive( pxHeadOwner );
 }
 /*-----------------------------------------------------------*/
 
-BaseType_t vTaskPopFromSemListFromISR ( const List_t * const pxSemList,
-                                        const BaseType_t xIsTakeList )
+BaseType_t xTaskPopFromSemaphoreListFromISR ( const List_t * const pxSemaphoreList )
 {
-    configASSERT( pxSemList );
-    configASSERT( xIsTakeList == pdTRUE || xIsTakeList == pdFALSE );
+    configASSERT( pxSemaphoreList );
 
     /* Get task whose item we should remove from list and notify */
-    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemList );
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemaphoreList );
     configASSERT( pxHeadOwner );
 
-    /* Remove task take (give) item */
-    if( xIsTakeList == pdTRUE )
-    {
-        listREMOVE_ITEM( &(pxHeadOwner->xTakeListItem) );
-    }
-    else
-    {
-        listREMOVE_ITEM( &(pxHeadOwner->xGiveListItem) );
-    }
+    /* Remove the item */
+    listREMOVE_ITEM( &( pxHeadOwner->xSemaphoreWaitItem ) );
 
     /* Notify task that it is ready */
     BaseType_t xHigherPriorityTaskWoken;
