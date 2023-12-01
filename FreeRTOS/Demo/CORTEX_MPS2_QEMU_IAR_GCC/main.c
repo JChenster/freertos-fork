@@ -86,7 +86,7 @@ extern void main_full( void );
 #define MY_QUEUE_TEST (1)
 
 // choose what test to run here
-#define RUNNING_TEST (MY_SEM_TEST)
+#define RUNNING_TEST (MY_QUEUE_TEST)
 
 // semaphore test program
 extern void main_my_sem( void );

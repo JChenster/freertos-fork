@@ -24,6 +24,7 @@ struct MyQueueDefinition
     int8_t* ucBufferBegin;
     int8_t* ucBufferEnd;
 };
+/*-----------------------------------------------------------*/
 
 MyQueueHandle_t pxMyQueueCreate( UBaseType_t xQueueLength, UBaseType_t xItemSize )
 {
@@ -34,18 +35,20 @@ MyQueueHandle_t pxMyQueueCreate( UBaseType_t xQueueLength, UBaseType_t xItemSize
         ( SIZE_MAX / xQueueLength ) >= xItemSize &&
         ( ( size_t ) ( SIZE_MAX - sizeof( MyQueue_t ) ) ) >= ( ( size_t ) (xQueueLength * xItemSize) ) )
     {
-        size_t QueueSizeBytes = sizeof( MyQueue_t ) + xQueueLength + xItemSize;
-        pxNewQueue = pvPortMalloc( QueueSizeBytes );
+        size_t xQueueSizeBytes = sizeof( MyQueue_t ) + xQueueLength + xItemSize;
+        pxNewQueue = pvPortMalloc( xQueueSizeBytes );
 
         if( pxNewQueue == NULL )
         {
             return NULL;
         }
 
+        /* Initialize semaphores */
         pxNewQueue->pxEmptySemaphore = pxMySemaphoreCreate( xQueueLength, xQueueLength );
         pxNewQueue->pxFullSemaphore = pxMySemaphoreCreate( xQueueLength, 0 );
         pxNewQueue->pxModifySemaphore = pxMySemaphoreCreate( 1, 1 );
 
+        /* If any initialization of semaphores fail, gracefully free and return */
         if( pxNewQueue->pxEmptySemaphore == NULL ||
             pxNewQueue->pxFullSemaphore == NULL ||
             pxNewQueue->pxModifySemaphore == NULL )
@@ -79,6 +82,7 @@ MyQueueHandle_t pxMyQueueCreate( UBaseType_t xQueueLength, UBaseType_t xItemSize
 
     return pxNewQueue;
 }
+/*-----------------------------------------------------------*/
 
 void vMyQueueDelete( MyQueueHandle_t pxMyQueue ) {
     configASSERT( pxMyQueue );
@@ -91,18 +95,19 @@ void vMyQueueDelete( MyQueueHandle_t pxMyQueue ) {
     vMySemaphoreDelete( pxMyQueue->pxFullSemaphore );
     vMySemaphoreDelete( pxMyQueue->pxModifySemaphore );
 }
+/*-----------------------------------------------------------*/
 
 BaseType_t xMyQueueSendToBack( MyQueueHandle_t pxMyQueue,
                                const void* pvItemToQueue,
                                TickType_t xTicksToWait )
 {
-    // take pxEmptySemaphore to get an empty slot to push an item
+    /* Get an empty slot to push an item */
     if( xMySemaphoreTake( pxMyQueue->pxEmptySemaphore, xTicksToWait / 2 ) == pdTRUE )
     {
-        // get mutual exclusive access to pxModifySemaphore to write
+        /* Get mutually exclusive access */
         if( xMySemaphoreTake( pxMyQueue->pxModifySemaphore, xTicksToWait / 2 ) == pdTRUE )
         {
-            // write to ucTail and then increment ucTail
+            /* Write to ucTail and then increment ucTail */
             memcpy( ( void* ) pxMyQueue->ucTail, pvItemToQueue, pxMyQueue->xItemSize );
 
             pxMyQueue->ucTail += pxMyQueue->xItemSize;
@@ -111,36 +116,36 @@ BaseType_t xMyQueueSendToBack( MyQueueHandle_t pxMyQueue,
                 pxMyQueue->ucTail = pxMyQueue->ucBufferBegin;
             }
 
-            // done writing
+            /* Done writing */
             xMySemaphoreGive( pxMyQueue->pxModifySemaphore, portMAX_DELAY );
 
-            // one more slot of the queue is now full
+            /* One more slot of the queue is now full */
             xMySemaphoreGive( pxMyQueue->pxFullSemaphore, portMAX_DELAY );
 
             return pdTRUE;
         }
         else
         {
-            // we were unsuccessful getting pxModifySemaphore so give back the
-            // empty slot we took
+            /* Take pxModifySemaphore failed so give back the empty slot we took */
             xMySemaphoreGive( pxMyQueue->pxEmptySemaphore, portMAX_DELAY );
         }
     }
 
     return errQUEUE_FULL;
 }
+/*-----------------------------------------------------------*/
 
 BaseType_t xMyQueueReceive( MyQueueHandle_t pxMyQueue,
                             void* pvBuffer,
                             TickType_t xTicksToWait )
 {
-    // take pxFullSemaphore to get a full slot to pop an item
+    /* Get a full slot to pop an item */
     if( xMySemaphoreTake( pxMyQueue->pxFullSemaphore, xTicksToWait / 2 ) == pdTRUE )
     {
-        // get mutual exclusive access to pxModifySemaphore to read
+        /* Get mutual exclusive access */
         if( xMySemaphoreTake( pxMyQueue->pxModifySemaphore, xTicksToWait / 2 ) == pdTRUE )
         {
-            // read from ucHead and then increment ucHead
+            /* Read from ucHead and then increment ucHead */
             memcpy( pvBuffer, ( void* ) pxMyQueue->ucHead, pxMyQueue->xItemSize );
 
             pxMyQueue->ucHead += pxMyQueue->xItemSize;
@@ -149,24 +154,24 @@ BaseType_t xMyQueueReceive( MyQueueHandle_t pxMyQueue,
                 pxMyQueue->ucHead = pxMyQueue->ucBufferBegin;
             }
 
-            // done reading
+            /* Done reading */
             xMySemaphoreGive( pxMyQueue->pxModifySemaphore, portMAX_DELAY );
 
-            // one more slot of the queue is now empty
+            /* One more slot of the queue is now empty */
             xMySemaphoreGive( pxMyQueue->pxEmptySemaphore, portMAX_DELAY );
 
             return pdTRUE;
         }
         else
         {
-            // we were unsuccessful getting pxModifySemaphore so give back the
-            // full slot we took
+            /* Take pxModifySemaphore failed so give back the full slot we took */
             xMySemaphoreGive( pxMyQueue->pxFullSemaphore, portMAX_DELAY );
         }
     }
 
     return errQUEUE_EMPTY;
 }
+/*-----------------------------------------------------------*/
 
 BaseType_t xMyQueueSendToBackFromISR( MyQueueHandle_t pxMyQueue,
                                       const void* pvItemToQueue,
@@ -174,30 +179,28 @@ BaseType_t xMyQueueSendToBackFromISR( MyQueueHandle_t pxMyQueue,
 {
     BaseType_t xStatus = errQUEUE_FULL;
 
-    // attempt to get pxModifySemaphore without waiting
-    // taking pxModifySemaphore should not awaken any givers since the giver of
-    // pxModifySemaphore is always the taker so we should never have any
-    // processes waiting to give so pxHigherPriorityTaskWoken parameter is
-    // irrelevant here
+    /* Attempt to take pxModifySemaphore without waiting. Taking
+     * pxModifySemaphore should not awaken any givers since the giver of
+     * pxModifySemaphore is always the taker so it always succeeds and never
+     * waits so pxHigherPriorityTaskWoken parameter is irrelevant here */
     if( xMySemaphoreTakeFromISR( pxMyQueue->pxModifySemaphore, NULL ) == pdTRUE )
     {
-        // We can assume that what happens in this block occurs atomically
-        // since only other interrupts with a higher priority can interrupt
-        // this function but they would not be able to acquire the ModifySmepahore
+        /* We can assume that what happens in this block occurs atomically
+         * since only other interrupts can interrupt this function but they
+         * would not be able to acquire pxModifySemaphore */
 
-        // take and give functions may notify other tasks so we should not call
-        // take and give unless we are confident they will succeed which we can
-        // quickly check since we are not waiting
+        /* Take and give functions may notify other tasks so we should not call
+         * take and give unless we are confident they will succeed */
         if( xMySemaphoreTakeAvailableFromISR( pxMyQueue->pxEmptySemaphore ) == pdTRUE &&
             xMySemaphoreGiveAvailableFromISR( pxMyQueue->pxFullSemaphore ) == pdTRUE )
         {
             BaseType_t EmptyWoken = pdFALSE;
             BaseType_t FullWoken = pdFALSE;
 
-            // take pxEmptySemaphore to push an item and ensure it succeeds
+            /* Take pxEmptySemaphore to push an item and ensure it succeeds */
             configASSERT( xMySemaphoreTakeFromISR( pxMyQueue->pxEmptySemaphore, &EmptyWoken ) == pdTRUE );
 
-            // write to ucTail and then increment ucTail
+            /* Write to ucTail and then increment ucTail */
             memcpy( ( void* ) pxMyQueue->ucTail, pvItemToQueue, pxMyQueue->xItemSize );
 
             pxMyQueue->ucTail += pxMyQueue->xItemSize;
@@ -206,27 +209,28 @@ BaseType_t xMyQueueSendToBackFromISR( MyQueueHandle_t pxMyQueue,
                 pxMyQueue->ucTail = pxMyQueue->ucBufferBegin;
             }
 
-            // give pxFullSemaphore to indicate an item has been pushed and
-            // ensure it succeeds
+            /* Give pxEmptySemaphore to signal that an item has been pushed and
+             * ensure it succeeds */
             configASSERT( xMySemaphoreGiveFromISR( pxMyQueue->pxFullSemaphore, &FullWoken ) == pdTRUE );
 
-            // Set pxHigherPriorityTaskWoken indicator here if not NULL
+            /* Set pxHigherPriorityTaskWoken indicator if not NULL */
             if( pxHigherPriorityTaskWoken != NULL )
             {
                 *pxHigherPriorityTaskWoken =
                     ( ( EmptyWoken == pdTRUE ) || ( FullWoken == pdTRUE ) ) ? pdTRUE : pdFALSE;
             }
 
+            /* Send was successful */
             xStatus = pdTRUE;
         }
 
-        // done modifying, this should always succeed since we guarantee hold
-        // the pxModifySemaphore
-        xMySemaphoreGiveFromISR( pxMyQueue->pxModifySemaphore, NULL );
+        /* Done modifying. Should always succeed */
+        configASSERT( xMySemaphoreGiveFromISR( pxMyQueue->pxModifySemaphore, NULL ) == pdTRUE );
     }
 
     return xStatus;
 }
+/*-----------------------------------------------------------*/
 
 BaseType_t xMyQueueReceiveFromISR( MyQueueHandle_t pxMyQueue,
                                    void* pvBuffer,
@@ -234,30 +238,28 @@ BaseType_t xMyQueueReceiveFromISR( MyQueueHandle_t pxMyQueue,
 {
     BaseType_t xStatus = errQUEUE_EMPTY;
 
-    // attempt to get pxModifySemaphore without waiting
-    // taking pxModifySemaphore should not awaken any givers since the giver of
-    // pxModifySemaphore is always the taker so we should never have any
-    // processes waiting to give so pxHigherPriorityTaskWoken parameter is
-    // irrelevant here
+    /* Attempt to take pxModifySemaphore without waiting. Taking
+     * pxModifySemaphore should not awaken any givers since the giver of
+     * pxModifySemaphore is always the taker so it always succeeds and never
+     * waits so pxHigherPriorityTaskWoken parameter is irrelevant here */
     if( xMySemaphoreTakeFromISR( pxMyQueue->pxModifySemaphore, NULL ) == pdTRUE )
     {
-        // We can assume that what happens in this block occurs atomically
-        // since only other interrupts with a higher priority can interrupt
-        // this function but they would not be able to acquire the ModifySmepahore
+        /* We can assume that what happens in this block occurs atomically
+         * since only other interrupts can interrupt this function but they
+         * would not be able to acquire pxModifySemaphore */
 
-        // take and give functions may notify other tasks so we should not call
-        // take and give unless we are confident they will succeed which we can
-        // quickly check since we are not waiting
+        /* Take and give functions may notify other tasks so we should not call
+         * take and give unless we are confident they will succeed */
         if( xMySemaphoreTakeAvailableFromISR( pxMyQueue->pxFullSemaphore ) == pdTRUE &&
             xMySemaphoreGiveAvailableFromISR( pxMyQueue->pxEmptySemaphore ) == pdTRUE )
         {
             BaseType_t FullWoken = pdFALSE;
             BaseType_t EmptyWoken = pdFALSE;
 
-            // take pxFullSemaphore to pop an item and ensure it succeeds
+            /* Take pxFullSemaphore to push an item and ensure it succeeds */
             configASSERT( xMySemaphoreTakeFromISR( pxMyQueue->pxFullSemaphore, &FullWoken ) == pdTRUE );
 
-            // read from ucHead and then increment ucHead
+            /* Read from ucHead and then increment ucHead */
             memcpy( pvBuffer, ( void* ) pxMyQueue->ucHead, pxMyQueue->xItemSize );
 
             pxMyQueue->ucHead += pxMyQueue->xItemSize;
@@ -266,22 +268,22 @@ BaseType_t xMyQueueReceiveFromISR( MyQueueHandle_t pxMyQueue,
                 pxMyQueue->ucHead = pxMyQueue->ucBufferBegin;
             }
 
-            // give pxEmptySemaphore to indicate an item has been popped and
-            // ensure it succeeds
+            /* Give pxEmptySemaphore to signal that an item has been pushed and
+             * ensure it succeeds */
             configASSERT( xMySemaphoreGiveFromISR( pxMyQueue->pxEmptySemaphore, &EmptyWoken ) == pdTRUE );
 
-            // Set pxHigherPriorityTaskWoken indicator here if not NULL
+            /* Set pxHigherPriorityTaskWoken indicator if not NULL */
             if( pxHigherPriorityTaskWoken != NULL )
             {
                 *pxHigherPriorityTaskWoken =
                     ( ( FullWoken == pdTRUE ) || ( EmptyWoken == pdTRUE ) ) ? pdTRUE : pdFALSE;
             }
 
+            /* Receive was successful */
             xStatus = pdTRUE;
         }
 
-        // done modifying, this should always succeed since we guarantee hold
-        // the pxModifySemaphore
+        /* Done modifying. Should always succeed */
         xMySemaphoreGiveFromISR( pxMyQueue->pxModifySemaphore, NULL );
     }
 
