@@ -81,7 +81,18 @@ required UART registers. */
  */
 extern void main_blinky( void );
 extern void main_full( void );
-extern void main_sem( void );
+
+#define MY_SEM_TEST (0)
+#define MY_QUEUE_TEST (1)
+
+// choose what test to run here
+#define RUNNING_TEST (MY_SEM_TEST)
+
+// semaphore test program
+extern void main_my_sem( void );
+
+// queue test program
+extern void main_my_queue( void );
 
 /*
  * Only the comprehensive demo uses application hook (callback) functions.  See
@@ -105,18 +116,11 @@ void main( void )
 	/* Hardware initialisation.  printf() output uses the UART for IO. */
 	prvUARTInit();
 
-	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-	of this file. */
-	#if ( mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1 )
-	{
-//		main_blinky();
-                main_sem();
-	}
-	#else
-	{
-		main_full();
-	}
-	#endif
+        #if RUNNING_TEST == MY_SEM_TEST
+            main_my_sem();
+        #elif RUNNING_TEST == MY_QUEUE_TEST
+            main_my_queue();
+        #endif
 }
 /*-----------------------------------------------------------*/
 

@@ -310,6 +310,7 @@ typedef struct tskTaskControlBlock       /* The old naming convention is used to
 
     ListItem_t xStateListItem;                  /**< The list that the state list item of a task is reference from denotes the state of that task (Ready, Blocked, Suspended ). */
     ListItem_t xEventListItem;                  /**< Used to reference a task from an event list. */
+    ListItem_t xSemaphoreWaitItem;              /**< Used to reference a task from a seamphore waiting list. */
     UBaseType_t uxPriority;                     /**< The priority of the task.  0 is the lowest priority. */
     StackType_t * pxStack;                      /**< Points to the start of the stack. */
     #if ( configNUMBER_OF_CORES > 1 )
@@ -1593,6 +1594,7 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
 
     vListInitialiseItem( &( pxNewTCB->xStateListItem ) );
     vListInitialiseItem( &( pxNewTCB->xEventListItem ) );
+    vListInitialiseItem( &( pxNewTCB->xSemaphoreWaitItem ) );
 
     /* Set the pxNewTCB as a link back from the ListItem_t.  This is so we can get
      * back to  the containing TCB from a generic item in a list. */
@@ -1601,6 +1603,13 @@ static void prvInitialiseNewTask( TaskFunction_t pxTaskCode,
     /* Event lists are always in priority order. */
     listSET_LIST_ITEM_VALUE( &( pxNewTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
     listSET_LIST_ITEM_OWNER( &( pxNewTCB->xEventListItem ), pxNewTCB );
+
+    /* Initialize semaphore waiting list item
+     * We want to order waiting list from highest to lowest priority */
+    listSET_LIST_ITEM_VALUE(
+        &( pxNewTCB->xSemaphoreWaitItem ),
+        ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) uxPriority );
+    listSET_LIST_ITEM_OWNER( &( pxNewTCB->xSemaphoreWaitItem ), pxNewTCB );
 
     #if ( portUSING_MPU_WRAPPERS == 1 )
     {
@@ -4777,6 +4786,17 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
 }
 /*-----------------------------------------------------------*/
 
+void vTaskPlaceOnSemaphoreList( List_t * const pxSemaphoreList )
+{
+    configASSERT( pxSemaphoreList );
+
+    /* Semaphore waiting item should not be on another list */
+    configASSERT( pxCurrentTCB->xSemaphoreWaitItem.pxContainer == NULL );
+
+    vListInsert( pxSemaphoreList, &( pxCurrentTCB->xSemaphoreWaitItem ) );
+}
+/*-----------------------------------------------------------*/
+
 #if ( configUSE_TIMERS == 1 )
 
     void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
@@ -4896,6 +4916,54 @@ BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList )
     #endif /* #if ( configNUMBER_OF_CORES == 1 ) */
 
     return xReturn;
+}
+/*-----------------------------------------------------------*/
+
+void vTaskRemoveFromSemaphoreList( const List_t * const pxSemaphoreList )
+{
+    configASSERT( pxSemaphoreList );
+
+    /* Check that this task's semaphore waiting item is indeed in this list */
+    configASSERT( pxCurrentTCB->xSemaphoreWaitItem.pxContainer == pxSemaphoreList );
+
+    listREMOVE_ITEM( &( pxCurrentTCB->xSemaphoreWaitItem ) );
+}
+/*-----------------------------------------------------------*/
+
+void vTaskPopFromSemaphoreList( const List_t * const pxSemaphoreList )
+{
+    configASSERT( pxSemaphoreList );
+
+    /* Get task whose item we should remove from semaphore list and notify */
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemaphoreList );
+    configASSERT( pxHeadOwner );
+
+    /* Remove the item */
+    listREMOVE_ITEM( &( pxHeadOwner->xSemaphoreWaitItem ) );
+
+    /* Notify task that it ready */
+    xTaskNotifyGive( pxHeadOwner );
+}
+/*-----------------------------------------------------------*/
+
+BaseType_t xTaskPopFromSemaphoreListFromISR ( const List_t * const pxSemaphoreList )
+{
+    configASSERT( pxSemaphoreList );
+
+    /* Get task whose item we should remove from list and notify */
+    TaskHandle_t pxHeadOwner = listGET_OWNER_OF_HEAD_ENTRY( pxSemaphoreList );
+    configASSERT( pxHeadOwner );
+
+    /* Remove the item */
+    listREMOVE_ITEM( &( pxHeadOwner->xSemaphoreWaitItem ) );
+
+    /* Notify task that it is ready */
+    BaseType_t xHigherPriorityTaskWoken;
+    vTaskNotifyGiveFromISR( pxHeadOwner, &xHigherPriorityTaskWoken );
+
+    /* Returns if the removed task priority is greater than priority of
+     * currently running task */
+    return xHigherPriorityTaskWoken;
 }
 /*-----------------------------------------------------------*/
 

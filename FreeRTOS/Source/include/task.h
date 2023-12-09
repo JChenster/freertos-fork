@@ -3259,7 +3259,7 @@ void vTaskPlaceOnEventList( List_t * const pxEventList,
 void vTaskPlaceOnUnorderedEventList( List_t * pxEventList,
                                      const TickType_t xItemValue,
                                      const TickType_t xTicksToWait ) PRIVILEGED_FUNCTION;
-
+void vTaskPlaceOnSemaphoreList( List_t * const pxSemaphoreList ) PRIVILEGED_FUNCTION;
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS AN
  * INTERFACE WHICH IS FOR THE EXCLUSIVE USE OF THE SCHEDULER.
@@ -3302,6 +3302,9 @@ void vTaskPlaceOnEventListRestricted( List_t * const pxEventList,
 BaseType_t xTaskRemoveFromEventList( const List_t * const pxEventList ) PRIVILEGED_FUNCTION;
 void vTaskRemoveFromUnorderedEventList( ListItem_t * pxEventListItem,
                                         const TickType_t xItemValue ) PRIVILEGED_FUNCTION;
+void vTaskRemoveFromSemaphoreList( const List_t * const pxSemaphoreList ) PRIVILEGED_FUNCTION;
+void vTaskPopFromSemaphoreList( const List_t * const pxSemaphoreList ) PRIVILEGED_FUNCTION;
+BaseType_t xTaskPopFromSemaphoreListFromISR ( const List_t * const pxSemaphoreList ) PRIVILEGED_FUNCTION;
 
 /*
  * THIS FUNCTION MUST NOT BE USED FROM APPLICATION CODE.  IT IS ONLY
